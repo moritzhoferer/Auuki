@@ -2,6 +2,7 @@ import { equals, exists, empty, first, last, xf, avg, max, toFixed, print, } fro
 import { kphToMps, mpsToKph, timeDiff, pad } from './utils.js';
 import { models } from './models/models.js';
 import { TimerStatus, EventType, } from './activity/enums.js';
+import { stepRange, } from './models/range.js';
 
 const timer = new Worker(new URL('./timer.js', import.meta.url), {type: 'module'});
 
@@ -443,6 +444,9 @@ xf.reg('watch:stepIndex',     (index, db) => {
     const slopeTarget    = db.workout.intervals[intervalIndex].steps[index].slope;
     const cadenceTarget  = db.workout.intervals[intervalIndex].steps[index].cadence;
     const distanceTarget = db.workout.intervals[intervalIndex].steps[index].distance;
+    const step           = db.workout.intervals[intervalIndex].steps[index];
+
+    xf.dispatch('ui:power-target-range-set', stepRange(step, db.ftp));
 
     // set targets only, the control mode stays the user's choice
     if(exists(slopeTarget)) {
