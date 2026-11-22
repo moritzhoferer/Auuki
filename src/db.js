@@ -4,6 +4,9 @@ import { Sound } from './sound.js';
 import { idb } from './storage/idb.js';
 import { ControlMode, } from './ble/enums.js';
 import { TimerStatus, } from './activity/enums.js';
+import { rangeStatus, hasRange, TimeInRange, } from './models/range.js';
+
+const timeInRange = TimeInRange();
 
 // import { trainerMock } from './simulation-scripts.js';
 
@@ -54,6 +57,9 @@ let db = {
     resistanceTarget: models.resistanceTarget.default,
     slopeTarget: models.slopeTarget.default,
     cadenceTarget: models.cadenceTarget.default,
+    powerTargetRange: {low: 0, high: 0},
+    powerTolerance: models.powerTolerance.default,
+    timeInRange: 0,
 
     mode: models.mode.default,
     page: models.page.default,
@@ -191,6 +197,23 @@ xf.reg('power1s', (power, db) => {
 
 xf.reg('power3s', (power, db) => {
     db.power3s = power;
+
+    if(equals(db.watchStatus, TimerStatus.started) && hasRange(db.powerTargetRange)) {
+        const isInside = equals(rangeStatus(power, db.powerTargetRange).zone, 'in');
+        db.timeInRange = timeInRange.add(isInside);
+    }
+});
+
+// time in range is per interval
+xf.reg('watch:lap', (_, db) => {
+    db.timeInRange = timeInRange.reset();
+});
+xf.reg('watch:stopped', (_, db) => {
+    db.timeInRange = timeInRange.reset();
+    db.powerTargetRange = {low: 0, high: 0};
+});
+xf.reg('workout:done', (_, db) => {
+    db.powerTargetRange = {low: 0, high: 0};
 });
 
 xf.reg('powerInZone', (powerInZone, db) => {
@@ -290,6 +313,13 @@ xf.reg(`ui:slope-target-dec`, (_, db) => {
 xf.reg('ui:ftp-set', (ftp, db) => {
     db.ftp = models.ftp.set(ftp);
     models.ftp.backup(db.ftp);
+});
+xf.reg('ui:power-tolerance-set', (tolerance, db) => {
+    db.powerTolerance = models.powerTolerance.set(tolerance);
+    models.powerTolerance.backup(db.powerTolerance);
+});
+xf.reg('ui:power-target-range-set', (range, db) => {
+    db.powerTargetRange = {low: range?.low ?? 0, high: range?.high ?? 0};
 });
 xf.reg('ui:weight-set', (weight, db) => {
     db.weight = models.weight.set(weight);
@@ -422,6 +452,7 @@ xf.reg('app:start', async function(_, db) {
 
     db.ftp = models.ftp.set(models.ftp.restore());
     db.weight = models.weight.set(models.weight.restore());
+    db.powerTolerance = models.powerTolerance.set(models.powerTolerance.restore());
     db.theme = models.theme.set(models.theme.restore());
     db.measurement = models.measurement.set(models.measurement.restore());
     db.volume = models.volume.set(models.volume.restore());

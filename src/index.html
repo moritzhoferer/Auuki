@@ -983,6 +983,25 @@
                                     effect="weight-set"
                                     prop="weight">Set</button>
                         </div>
+                        <div id="power-tolerance-settings" class="settings-tile">
+                            <label for="power-tolerance-value" class="settings-tile--label">Tolerance % FTP</label>
+                            <input is="int-input"
+                                id="power-tolerance-value"
+                                class="settings-tile--input"
+                                name="power-tolerance-value"
+                                type="number"
+                                min="1"
+                                max="30"
+                                value="7"
+                                prop="powerTolerance"
+                                effect="power-tolerance-set" />
+                            <button is="set-button"
+                                    id="power-tolerance-btn"
+                                    class="settings-tile--btn flat-btn"
+                                    default="7"
+                                    effect="power-tolerance-set"
+                                    prop="powerTolerance">Set</button>
+                        </div>
                     </div>
                     <div class="settings-btn-row">
 

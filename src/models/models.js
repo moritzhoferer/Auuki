@@ -444,6 +444,26 @@ class Weight extends Model {
     }
 }
 
+// pacing tolerance around the target range, in % of FTP
+class PowerTolerance extends Model {
+    postInit(args = {}) {
+        const self = this;
+        const storageModel = {
+            key: self.prop,
+            fallback: self.defaultValue(),
+            parse: parseInt,
+        };
+        self.min = existance(args.min, 1);
+        self.max = existance(args.max, 30);
+        self.storage = new args.storage(storageModel);
+    }
+    defaultValue() { return 7; }
+    defaultIsValid(value) {
+        const self = this;
+        return Number.isInteger(value) && inRange(self.min, self.max, value);
+    }
+}
+
 class Theme extends Model {
     postInit(args = {}) {
         const self = this;
@@ -1669,6 +1689,7 @@ const page = new Page({prop: 'page'});
 
 const ftp = new FTP({prop: 'ftp', storage: LocalStorageItem});
 const weight = new Weight({prop: 'weight', storage: LocalStorageItem});
+const powerTolerance = new PowerTolerance({prop: 'powerTolerance', storage: LocalStorageItem});
 const theme = new Theme({prop: 'theme', storage: LocalStorageItem});
 const dockMode = new DockMode({prop: 'dockMode', storage: LocalStorageItem});
 const volume = new Volume({prop: 'volume', storage: LocalStorageItem});
@@ -1722,6 +1743,7 @@ let models = {
     page,
     ftp,
     weight,
+    powerTolerance,
     dockMode,
     volume,
     theme,
