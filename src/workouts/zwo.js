@@ -551,6 +551,7 @@ function SteadyState(args = {}) {
         tagOpen:      '<SteadyState',
         tagClose:     ' />',
         toInterval:   toInterval,
+        fromInterval: fromInterval,
     }, args.spec);
 
     function toInterval(element) {
@@ -574,6 +575,8 @@ function SteadyState(args = {}) {
         let step = {};
 
         if(exists(power)) {
+            element.PowerLow = undefined;
+            element.PowerHigh = undefined;
             step = Step(element);
         }
         else if(exists(powerLow) || exists(powerHigh)) {
@@ -590,13 +593,34 @@ function SteadyState(args = {}) {
             step = Step(element);
         }
 
+        // keep the range as a target, power stays the single (ERG) target
+        if(exists(powerLow) && exists(powerHigh)) {
+            step.powerLow  = Math.min(powerLow, powerHigh);
+            step.powerHigh = Math.max(powerLow, powerHigh);
+        }
+
         return first(assignMessages([{
             duration: duration,
             steps: [step],
         }], element.children));
     }
 
-    return Element(spec);
+    function fromInterval(interval) {
+        const res  = base.defaultFromInterval(interval);
+        const step = first(interval.steps);
+
+        if(exists(step.powerLow) && exists(step.powerHigh)) {
+            delete res.Power;
+            res.PowerLow  = step.powerLow;
+            res.PowerHigh = step.powerHigh;
+        }
+
+        return res;
+    }
+
+    const base = Element(spec);
+
+    return base;
 }
 
 function TextEvent(args = {}) {
