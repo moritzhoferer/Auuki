@@ -272,3 +272,118 @@ describe('Zwo', () => {
         expect(res).toStrictEqual(expected);
     });
 });
+
+describe('Zwo SteadyState power range', () => {
+    const toInterval = (attrs) => {
+        const input = `
+        <workout_file>
+            <workout>
+                <SteadyState ${attrs}/>
+            </workout>
+        </workout_file>`;
+        return zwo.readToInterval(input).intervals[0];
+    };
+
+    test('Power only has no range', () => {
+        expect(toInterval(`Duration="60" Power="0.75"`)).toStrictEqual(
+            {duration: 60, steps: [{duration: 60, power: 0.75}]}
+        );
+    });
+
+    test('PowerLow and PowerHigh keep the range, power is the midpoint', () => {
+        const res  = toInterval(`show_avg="1" PowerHigh="0.932" PowerLow="0.898" Duration="1500"`);
+        const step = res.steps[0];
+
+        expect(res.duration).toBe(1500);
+        expect(step.duration).toBe(1500);
+        expect(step.powerLow).toBe(0.898);
+        expect(step.powerHigh).toBe(0.932);
+        expect(step.power).toBeCloseTo(0.915, 10);
+        expect(step).not.toHaveProperty('powerlow');
+        expect(step).not.toHaveProperty('powerhigh');
+    });
+
+    test('reversed PowerLow and PowerHigh are ordered', () => {
+        const step = toInterval(`Duration="60" PowerLow="0.9" PowerHigh="0.8"`).steps[0];
+
+        expect(step.powerLow).toBe(0.8);
+        expect(step.powerHigh).toBe(0.9);
+        expect(step.power).toBeCloseTo(0.85, 10);
+    });
+
+    test('only one bound is a single target without range', () => {
+        expect(toInterval(`Duration="60" PowerLow="0.6"`)).toStrictEqual(
+            {duration: 60, steps: [{duration: 60, power: 0.6}]}
+        );
+        expect(toInterval(`Duration="60" PowerHigh="0.7"`)).toStrictEqual(
+            {duration: 60, steps: [{duration: 60, power: 0.7}]}
+        );
+    });
+
+    test('Power wins as target, range is kept', () => {
+        const step = toInterval(`Duration="60" Power="0.8" PowerLow="0.75" PowerHigh="0.9"`).steps[0];
+
+        expect(step).toStrictEqual({duration: 60, power: 0.8, powerLow: 0.75, powerHigh: 0.9});
+    });
+
+    test('range works with cadence range and text events', () => {
+        const input = `
+        <workout_file>
+            <workout>
+                <SteadyState Duration="300" PowerLow="0.5" PowerHigh="0.6" CadenceLow="85" CadenceHigh="95">
+                    <textevent timeoffset="0" message="Settle in" duration="10"/>
+                </SteadyState>
+            </workout>
+        </workout_file>`;
+
+        const step = zwo.readToInterval(input).intervals[0].steps[0];
+
+        expect(step.powerLow).toBe(0.5);
+        expect(step.powerHigh).toBe(0.6);
+        expect(step.power).toBeCloseTo(0.55, 10);
+        expect(step.cadence).toBe(90);
+        expect(step.messages).toStrictEqual([{duration: 10, offset: 0, message: 'Settle in'}]);
+    });
+
+    test('fromInterval writes the range back', () => {
+        const interval = {duration: 1500, steps: [
+            {duration: 1500, power: 0.915, powerLow: 0.898, powerHigh: 0.932},
+        ]};
+
+        expect(zwo.Elements.SteadyState.fromInterval(interval)).toStrictEqual({
+            element: 'SteadyState', Duration: 1500, PowerLow: 0.898, PowerHigh: 0.932,
+        });
+    });
+
+    test('fromInterval without range writes Power', () => {
+        const interval = {duration: 60, steps: [{duration: 60, power: 0.75, cadence: 90}]};
+
+        expect(zwo.Elements.SteadyState.fromInterval(interval)).toStrictEqual({
+            element: 'SteadyState', Duration: 60, Power: 0.75, Cadence: 90,
+        });
+    });
+
+    test('range survives write and read', () => {
+        const input = `
+        <workout_file>
+            <author>Test</author>
+            <name>Sweet Spot Range</name>
+            <description>Range test</description>
+            <sportType>bike</sportType>
+            <tags/>
+            <workout>
+                <SteadyState Duration="600" PowerLow="0.474" PowerHigh="0.644"/>
+                <SteadyState Duration="1500" PowerLow="0.898" PowerHigh="0.932"/>
+                <SteadyState Duration="300" Power="0.5"/>
+            </workout>
+        </workout_file>`;
+
+        const workout = zwo.readToInterval(input);
+        const output  = zwo.write(zwo.fromInterval(workout));
+        const again   = zwo.readToInterval(output);
+
+        expect(again.intervals).toStrictEqual(workout.intervals);
+        expect(again.intervals[1].steps[0].powerLow).toBe(0.898);
+        expect(again.intervals[1].steps[0].powerHigh).toBe(0.932);
+    });
+});
