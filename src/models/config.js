@@ -10,7 +10,8 @@ class Config {
             // API_URI: "https://localhost:8080", // dev
             // TURNSTILE_SITE_KEY: '1x00000000000000000000AA', // dev
             PWA_URI: window.location.origin ?? "https://auuki.com", // live
-            API_URI: "https://api.auuki.com", // live
+            // home: the self-hosted server serves the PWA and /api from one origin
+            API_URI: window.location.origin,
             TURNSTILE_SITE_KEY: '0x4AAAAAAA2IUz1CU0EU3E-O', // live
             STRAVA_CLIENT_ID: this.defaultStravaClientId,
             INTERVALS_CLIENT_ID: this.defaultIntervalsClientId,

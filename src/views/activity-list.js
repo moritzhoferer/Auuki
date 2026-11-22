@@ -2,6 +2,8 @@ import { xf, formatDate, escapeHtml, } from '../functions.js';
 import { models } from '../models/models.js';
 import { formatTime, } from '../utils.js';
 
+const garminIcon = new URL('../images/connections/garmin-connect.png', import.meta.url);
+
 class ActivityList extends HTMLElement {
     constructor() {
         super();
@@ -61,7 +63,7 @@ class ActivityList extends HTMLElement {
         const id = escapeHtml(this.id(data));
         const name = escapeHtml(this.name(data));
         const intervalsStatus = escapeHtml(status.intervals ?? 'none');
-        const stravaStatus = escapeHtml(status.strava ?? 'none');
+        const garminStatus = escapeHtml(status.garmin ?? 'none');
         const trainingPeaksStatus = escapeHtml(status.trainingPeaks ?? 'none');
 
         return `
@@ -108,13 +110,11 @@ class ActivityList extends HTMLElement {
                                     </view-action>
 
                                     <view-action
-                                        class="activity--action"
-                                        action=":strava:upload"
+                                        class="activity--action action--garmin"
+                                        action=":garmin:upload"
                                         topic=":activity:${id}">
-                                        <svg class="activity--icon strava--icon" width="24" height="24">
-                                            <use href="#icon--strava" />
-                                        </svg>
-                                        <div class="connection-icon-switch--indicator ${stravaStatus} strava"></div>
+                                        <img class="activity--icon garmin--icon" width="24" height="24" alt="Garmin" src="${garminIcon}" />
+                                        <div class="connection-icon-switch--indicator ${garminStatus} garmin"></div>
                                     </view-action>
                                     <!--
                                     <view-action
@@ -167,7 +167,7 @@ class ActivityItem extends HTMLElement {
         this.abortController = new AbortController();
         this.signal = { signal: self.abortController.signal };
 
-        this.$indicatorStrava = this.querySelector(`.connection-icon-switch--indicator.strava`);
+        this.$indicatorGarmin = this.querySelector(`.connection-icon-switch--indicator.garmin`);
         this.$indicatorIntervals = this.querySelector(`.connection-icon-switch--indicator.intervals`);
 
         this.$indicatorTP = this.querySelector(`.connection-icon-switch--indicator.tp`);
@@ -200,9 +200,9 @@ class ActivityItem extends HTMLElement {
             models.activity.download(this.id);
             return;
         }
-        if(action === ':strava:upload') {
-            models.activity.upload('strava', this.id);
-            this.onLoading(this.$indicatorStrava);
+        if(action === ':garmin:upload') {
+            models.activity.upload('garmin', this.id);
+            this.onLoading(this.$indicatorGarmin);
             return;
         }
         if(action === ':intervals:upload') {
@@ -216,11 +216,11 @@ class ActivityItem extends HTMLElement {
             return;
         }
 
-        if(action === ':strava:upload:success') {
-            this.onSuccess(this.$indicatorStrava);
+        if(action === ':garmin:upload:success') {
+            this.onSuccess(this.$indicatorGarmin);
         }
-        if(action === ':strava:upload:fail') {
-            this.onFail(this.$indicatorStrava);
+        if(action === ':garmin:upload:fail') {
+            this.onFail(this.$indicatorGarmin);
         }
         if(action === ':intervals:upload:success') {
             this.onSuccess(this.$indicatorIntervals);

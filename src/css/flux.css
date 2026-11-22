@@ -3809,3 +3809,16 @@ and (min-width: 1900px) {
 }
 /* END Media Queries */
 
+
+/* home: self-hosted single user, no accounts; connections are configured on the server */
+#view--settings-profile .auth,
+account-badge,
+#account--management--cont,
+.app-connections .strava,
+#intervals--connect--button {
+    display: none !important;
+}
+.activity--icon.garmin--icon {
+    object-fit: contain;
+}
+/* END home */

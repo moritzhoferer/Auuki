@@ -6,6 +6,7 @@ import strava from './strava.js';
 import intervals from './intervals.js';
 import trainingPeaks from './training-peaks.js';
 import auth from './auth.js';
+import garmin from './garmin.js';
 
 function API() {
     const router = Router();
@@ -22,6 +23,7 @@ function API() {
         strava,
         intervals,
         trainingPeaks,
+        garmin,
         start,
         stop,
     });

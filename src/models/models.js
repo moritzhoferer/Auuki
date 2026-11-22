@@ -606,7 +606,7 @@ class Activity extends Model {
             timestamp: Date.now(),
             name,
             duration: db.elapsed ?? 0,
-            status: {strava: 'none', intervals: 'none', trainingPeaks: 'none'},
+            status: {strava: 'none', intervals: 'none', trainingPeaks: 'none', garmin: 'none'},
         };
         const record = {
             id,
@@ -634,7 +634,8 @@ class Activity extends Model {
 
         if(service === 'strava' ||
            service === 'intervals' ||
-           service === 'trainingPeaks') {
+           service === 'trainingPeaks' ||
+           service === 'garmin') {
 
             const res = await this.api[service].uploadWorkout(record);
             record = await idb.get('activity', id);
