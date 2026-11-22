@@ -1399,6 +1399,26 @@ class PropInterval {
     }
 }
 
+// Rolling average over the last `window` intervals, emitted every interval.
+// e.g. interval 1000, window 3 -> 3s power updated every second
+class RollingInterval extends PropInterval {
+    constructor(args = {}) {
+        super(args);
+        this.window = existance(args.window, 3);
+        this.buffer = [];
+    }
+    onInterval() {
+        if(equals(this.count, 0)) return;
+
+        this.buffer.push(this.accumulator / this.count);
+        if(this.buffer.length > this.window) this.buffer.shift();
+
+        this.state = this.buffer.reduce((acc, x) => acc + x, 0) / this.buffer.length;
+        xf.dispatch(`${this.effect}`, this.state);
+        this.reset();
+    }
+}
+
 class PowerInZone {
     constructor(args = {}) {
         const self = this;
@@ -1685,7 +1705,7 @@ const dataTileSwitch = new DataTileSwitch({prop: 'dataTileSwitch', storage: Loca
 const virtualGear = new VirtualGear({prop: 'virtualGear'});
 
 const power1s = new PropInterval({prop: 'db:power', effect: 'power1s', interval: 1000});
-const power3s = new PropInterval({prop: 'db:power', effect: 'power3s', interval: 3000});
+const power3s = new RollingInterval({prop: 'db:power', effect: 'power3s', interval: 1000, window: 3});
 const powerInZone = new PowerInZone({ftpModel: ftp});
 
 const activity = new Activity({prop: 'activity', api: api});
@@ -1742,6 +1762,7 @@ let models = {
     session,
 
     PropInterval,
+    RollingInterval,
 
     api,
 };
