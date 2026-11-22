@@ -15,7 +15,7 @@ npm test             # full suite
 ```
 
 Baseline on upstream/develop @ 3442b6a (2026-11-22): 461 pass, 50 fail, 11 skipped
-(home with feat branches: 475 pass, same 50 fail).
+(home with all feat branches incl. ride panel: 528 pass, same 50 fail; server: 24 pytest).
 The failures already exist upstream. They come from stale tests that import moved or
 removed modules (`src/ble/uuids.js`, `src/fit/activity.js`, `src/fit/profiles.js`, ...)
 and from jsdom gaps (`watch.test.js`, `moxy-graph.test.js`, `idb.test.js`). Don't fix
