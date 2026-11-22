@@ -308,7 +308,6 @@ rider-chip { display: flex; }
     font: inherit; cursor: pointer;
 }
 .rider-chip:hover { background: var(--surface-2); }
-.rider-chip--facts { color: var(--muted); font-size: .85rem; }
 
 .avatar {
     display: inline-grid; place-items: center;
@@ -762,7 +761,6 @@ button.editor--td { cursor: pointer; }
     /* only connected sensors in the bar, the + button lists them all */
     .app-bar--sensors .badge:not([data-status="on"]):not([data-status="connecting"]):not(.badge--more) { display: none; }
     .app-bar--sensors { margin-left: auto; }
-    .rider-chip--facts { display: none; }
     .choice { min-height: 100px; padding: 12px; }
 }
 

@@ -407,8 +407,7 @@ class RiderChip extends UIView {
         const rider = this.data.rider;
         if(!rider) { this.innerHTML = ''; return; }
         this.innerHTML = `<button class="btn btn--ghost rider-chip" data-action="screen" data-param="settings"
-            aria-label="${html(rider.name)}: FTP ${rider.ftp} W, ${rider.weight} kg. Open settings">
-            <span class="rider-chip--facts">FTP ${rider.ftp} W · ${rider.weight} kg</span>${avatar(rider.name)}</button>`;
+            aria-label="${html(rider.name)}: open settings">${avatar(rider.name)}</button>`;
     }
 }
 
