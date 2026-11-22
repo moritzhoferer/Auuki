@@ -1,5 +1,6 @@
 //
 // The sensor types the app can connect, in display order.
+// `more` ones are rarely used and sit behind 'More sensors' until connected.
 // `ble` / `ant` are the event prefixes of ble/devices.js and ant/devices.js:
 // ui:<id>:switch connects or disconnects, <id>:connected / :disconnected / :connecting,
 // <id>:name and <id>:batteryLevel report back.
@@ -10,9 +11,9 @@ const sensors = [
     {id: 'hrm',        label: 'Heart rate',        icon: 'hrm',        ble: 'ble:heartRateMonitor',   ant: 'ant:hrm',          provides: ['heartRate']},
     {id: 'power',      label: 'Power meter',       icon: 'power',      ble: 'ble:powerMeter',                                  provides: ['power', 'cadence']},
     {id: 'cadence',    label: 'Speed and cadence', icon: 'cadence',    ble: 'ble:speedCadenceSensor',                          provides: ['cadence', 'speed']},
-    {id: 'smo2',       label: 'Muscle oxygen',     icon: 'smo2',       ble: 'ble:smo2',                                        provides: ['smo2', 'thb']},
-    {id: 'core',       label: 'Core temperature',  icon: 'core',       ble: 'ble:coreTemp',                                    provides: ['coreBodyTemperature', 'skinTemperature']},
-    {id: 'controller', label: 'Controller',        icon: 'controller', ble: 'ble:openBikeControl',                             provides: ['virtualGear']},
+    {id: 'smo2',       label: 'Muscle oxygen',     icon: 'smo2',       ble: 'ble:smo2',                                        provides: ['smo2', 'thb'], more: true},
+    {id: 'core',       label: 'Core temperature',  icon: 'core',       ble: 'ble:coreTemp',                                    provides: ['coreBodyTemperature', 'skinTemperature'], more: true},
+    {id: 'controller', label: 'Controller',        icon: 'controller', ble: 'ble:openBikeControl',                             provides: ['virtualGear'], more: true},
 ];
 
 // data that several sensors can provide: which one is used is db.sources[metric]

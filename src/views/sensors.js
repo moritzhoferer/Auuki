@@ -53,7 +53,7 @@ class SensorList extends UIView {
         const status = this.data.sensors ?? {};
         const antOn = equals(this.data.antDriver, 'on');
 
-        const rows = sensors.map(sensor => {
+        const row = (sensor) => {
             const entry = status[sensor.id] ?? {};
             const on = entry.status === 'on';
             const busy = entry.status === 'connecting';
@@ -73,9 +73,23 @@ class SensorList extends UIView {
                 </span>
                 <span class="sensor-row--actions">${on && viaAnt ? '' : bleBtn}${antBtn}</span>
             </li>`;
-        }).join('');
+        };
+        const main = sensors.filter(s => !s.more);
+        const more = sensors.filter(s => s.more);
+        // opens by itself while one of them is in use, otherwise remembers the rider's choice
+        const moreInUse = more.some(s => (status[s.id]?.status ?? 'off') !== 'off');
 
-        this.innerHTML = `<ul class="sensor-rows" aria-label="Sensors">${rows}</ul>
+        this.innerHTML = `<ul class="sensor-rows" aria-label="Sensors">${main.map(row).join('')}</ul>
+            <details class="sensor-more" ${(this.moreOpen ?? moreInUse) ? 'open' : ''}>
+                <summary class="sensor-row">
+                    <span class="sensor-row--text">
+                        <span class="sensor-row--label">More sensors</span>
+                        <span class="sensor-row--status">${html(more.map(s => s.label).join(', '))}</span>
+                    </span>
+                    ${icon('chevron', 'sensor-more--chevron')}
+                </summary>
+                <ul class="sensor-rows" aria-label="More sensors">${more.map(row).join('')}</ul>
+            </details>
             ${this.sourcesTemplate(status)}
             <div class="sensor-ant">
                 <span><span class="sensor-row--label">ANT+ USB stick</span>
@@ -99,6 +113,11 @@ class SensorList extends UIView {
         return choices ? `<div class="sensor-sources">${choices}</div>` : '';
     }
     config() {
+        this.moreOpen = null; // null: follow whether one of them is in use
+        // toggle doesn't bubble
+        this.addEventListener('toggle', (e) => {
+            if(e.target.classList?.contains('sensor-more')) this.moreOpen = e.target.open;
+        }, {...this.signal, capture: true});
         this.addEventListener('change', (e) => {
             const metric = e.target.dataset?.source;
             if(metric) xf.dispatch('ui:sensor:source', `${metric}=${e.target.value}`);

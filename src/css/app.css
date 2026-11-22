@@ -379,7 +379,7 @@ rider-setup { display: flex; flex-direction: column; gap: calc(var(--gap) * 1.5)
 rider-setup .screen--head { flex-direction: column; align-items: flex-start; gap: 4px; }
 
 /* start */
-.start-layout { display: grid; gap: calc(var(--gap) * 1.5); }
+.start-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: calc(var(--gap) * 1.5); }
 .choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
 .choice-file { display: contents; }
 .choice {
@@ -429,7 +429,7 @@ sensor-list { display: flex; flex-direction: column; gap: var(--gap); }
 .sensor-rows { display: flex; flex-direction: column; }
 .sensor-row, .sensor-ant {
     display: flex; align-items: center; gap: 12px;
-    padding: 10px 0;
+    padding: 6px 0;
     border-bottom: 1px solid var(--border);
 }
 .sensor-row:last-child { border-bottom: none; }
@@ -439,7 +439,29 @@ sensor-list { display: flex; flex-direction: column; gap: var(--gap); }
 .sensor-row--text, .sensor-ant > span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .sensor-row--label { font-weight: 500; }
 .sensor-row--status { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
-.sensor-row--actions { display: flex; gap: 6px; }
+.sensor-row--actions { display: flex; gap: 2px; }
+/* tonal buttons: clearly buttons, quieter than seven outlined boxes */
+.sensor-row--actions .btn, .sensor-ant .btn {
+    min-height: 36px; padding: 0 14px;
+    border-color: transparent;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent-2); font-weight: 600;
+}
+.sensor-row--actions .btn:hover, .sensor-ant .btn:hover { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+.sensor-row--actions .btn--ghost, .sensor-ant .btn--ghost { background: var(--surface-2); color: var(--text); }
+.sensor-row--actions .btn--ghost:hover, .sensor-ant .btn--ghost:hover { background: var(--border); }
+/* 'More sensors' looks like a row: names as its status, a chevron that turns */
+.sensor-more { border-top: 1px solid var(--border); margin-top: calc(var(--gap) * -1); }
+.sensor-more > summary {
+    list-style: none; cursor: pointer;
+    padding-left: 38px; border-bottom: none;
+    border-radius: 8px;
+}
+.sensor-more > summary::-webkit-details-marker { display: none; }
+.sensor-more > summary:hover { background: var(--surface-2); }
+.sensor-more > summary .sensor-row--status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sensor-more--chevron { width: 22px; height: 22px; margin-right: 8px; color: var(--muted); transition: transform .2s; }
+.sensor-more[open] .sensor-more--chevron { transform: rotate(180deg); }
 .sensor-ant { border-top: 1px solid var(--border); border-bottom: none; padding-top: var(--gap); }
 .sensor-sources { display: flex; flex-direction: column; gap: 8px; }
 .sensor-sources select { width: auto; }
@@ -510,7 +532,15 @@ dialog.sheet {
     overflow: auto;
 }
 dialog.sheet::backdrop { background: rgba(0, 0, 0, .6); }
-.sheet--head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--gap); }
+/* height follows the content up to 88dvh, then the body scrolls under a sticky head */
+dialog.sheet { padding-top: 0; padding-bottom: calc(var(--pad) + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+.sheet--head {
+    position: sticky; top: 0; z-index: 1;
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 0 calc(var(--pad) * -1) var(--gap); padding: 8px var(--pad);
+    background: var(--surface);
+}
+.sheet--head .btn--icon { border-color: transparent; }
 
 
 /* ---------- ride ---------- */
@@ -770,7 +800,6 @@ button.editor--td { cursor: pointer; }
     .account--on { grid-template-columns: auto minmax(0, 1fr); }
     .account--on > .btn { grid-column: 1 / -1; justify-self: start; }
     .sensor-row { gap: 10px; }
-    .sensor-row--actions .btn { padding: 0 12px; }
     .ride-bar .segmented--small .btn { padding: 0 8px; }
     .stepper--value { min-width: 60px; }
     target-stepper { gap: 4px; }

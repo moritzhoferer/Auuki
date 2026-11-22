@@ -187,7 +187,7 @@ customElements.define('ui-tooltip', UITooltip);
 //
 const titles = {
     riders: "Who's riding?", setup: 'Set up', start: 'Start', library: 'Workouts', ready: 'Ready',
-    ride: 'Ride', summary: 'Ride saved', settings: 'Settings', editor: 'Workout editor',
+    ride: 'Ride', summary: 'Ride saved', rides: 'Rides', settings: 'Settings', editor: 'Workout editor',
 };
 
 let firstScreen = true;
