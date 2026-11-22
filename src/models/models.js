@@ -305,9 +305,17 @@ class CadenceTarget extends Target {
 }
 
 class Mode extends Model {
-    postInit(args) {
+    postInit(args = {}) {
+        const self = this;
         this.state = this.defaultValue();
         this.values = Object.values(ControlMode);
+        if(exists(args.storage)) {
+            const storageModel = {
+                key: self.prop,
+                fallback: self.defaultValue(),
+            };
+            self.storage = new args.storage(storageModel);
+        }
     }
     defaultValue() { return ControlMode.erg; }
     defaultIsValid(value) { return this.values.includes(value); }
@@ -1023,7 +1031,6 @@ function Session(args = {}) {
             // Workouts
             workout: db.workout,
             mode: db.mode,
-            lock: db.lock,
             page: db.page,
 
             // Targets
@@ -1664,7 +1671,7 @@ const powerTarget = new PowerTarget({prop: 'powerTarget'});
 const resistanceTarget = new ResistanceTarget({prop: 'resistanceTarget'});
 const slopeTarget = new SlopeTarget({prop: 'slopeTarget'});
 const cadenceTarget = new CadenceTarget({prop: 'cadenceTarget'});
-const mode = new Mode({prop: 'mode'});
+const mode = new Mode({prop: 'mode', storage: LocalStorageItem});
 const page = new Page({prop: 'page'});
 
 const ftp = new FTP({prop: 'ftp', storage: LocalStorageItem});

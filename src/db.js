@@ -57,7 +57,6 @@ let db = {
 
     mode: models.mode.default,
     page: models.page.default,
-    lock: false,
 
     // Profile
     ftp: models.ftp.default,
@@ -221,10 +220,10 @@ xf.reg('ui:page-set', (page, db) => {
 });
 
 // Modes
+// the mode is the user's choice, workouts only set targets
 xf.reg('ui:mode-set', (mode, db) => {
-    if(db.lock) return;
-
     db.mode = models.mode.set(mode);
+    models.mode.backup(db.mode);
 
     if(equals(mode, ControlMode.erg)) {
         xf.dispatch(`ui:power-target-set`, db.powerTarget);
@@ -235,14 +234,6 @@ xf.reg('ui:mode-set', (mode, db) => {
     if(equals(mode, ControlMode.sim)) {
         xf.dispatch(`ui:slope-target-set`, db.slopeTarget);
     }
-});
-
-xf.reg('ui:lock-set', (_, db) => {
-    db.lock = !db.lock;
-});
-
-xf.reg('ui:lock-toggle', (_, db) => {
-    db.lock = !db.lock;
 });
 
 
@@ -423,6 +414,7 @@ xf.reg('app:start', async function(_, db) {
     db.ftp = models.ftp.set(models.ftp.restore());
     db.weight = models.weight.set(models.weight.restore());
     db.theme = models.theme.set(models.theme.restore());
+    db.mode = models.mode.set(models.mode.restore());
     db.measurement = models.measurement.set(models.measurement.restore());
     db.volume = models.volume.set(models.volume.restore());
     db.dataTileSwitch = models.dataTileSwitch.set(models.dataTileSwitch.restore()),

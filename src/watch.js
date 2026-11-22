@@ -1,7 +1,6 @@
 import { equals, exists, empty, first, last, xf, avg, max, toFixed, print, } from './functions.js';
 import { kphToMps, mpsToKph, timeDiff, pad } from './utils.js';
 import { models } from './models/models.js';
-import { ControlMode, } from './ble/enums.js';
 import { TimerStatus, EventType, } from './activity/enums.js';
 
 const timer = new Worker(new URL('./timer.js', import.meta.url), {type: 'module'});
@@ -56,9 +55,8 @@ class Watch {
 
             if(self.isWorkoutDone()) {
                 xf.dispatch('watch:lap');
-                // reset to slope mode 0% when workout is done
+                // reset slope to 0% when workout is done
                 xf.dispatch('ui:slope-target-set', 0);
-                xf.dispatch('ui:mode-set', ControlMode.sim);
                 console.log(`Workout done!`);
             }
         });
@@ -446,11 +444,9 @@ xf.reg('watch:stepIndex',     (index, db) => {
     const cadenceTarget  = db.workout.intervals[intervalIndex].steps[index].cadence;
     const distanceTarget = db.workout.intervals[intervalIndex].steps[index].distance;
 
+    // set targets only, the control mode stays the user's choice
     if(exists(slopeTarget)) {
         xf.dispatch('ui:slope-target-set', slopeTarget);
-        if(!equals(db.mode, ControlMode.sim)) {
-            xf.dispatch('ui:mode-set', ControlMode.sim);
-        }
     }
     if(exists(distanceTarget)) {
         xf.dispatch('ui:distance-target-set', distanceTarget);
@@ -462,9 +458,6 @@ xf.reg('watch:stepIndex',     (index, db) => {
     }
     if(exists(powerTarget)) {
         xf.dispatch('ui:power-target-set', models.ftp.toAbsolute(powerTarget, db.ftp));
-        if(!exists(slopeTarget) && !equals(db.mode, ControlMode.erg)) {
-            xf.dispatch('ui:mode-set', ControlMode.erg);
-        }
     } else {
         xf.dispatch('ui:power-target-set', 0);
     }
