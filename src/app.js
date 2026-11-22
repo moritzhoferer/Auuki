@@ -49,6 +49,14 @@ function afterLogin() {
     notice('');
     loadPlanned();
     loadRides();
+    syncBody();
+}
+
+// FTP and weight follow Intervals.icu or Garmin when the rider chose so
+async function syncBody() {
+    if(!db.rider || equals(db.rider.bodySource ?? 'manual', 'manual')) return;
+    const result = await server.syncBody();
+    if(result.ok) setRider(result.data);
 }
 
 // --- riders -----------------------------------------------------------------------------
@@ -124,8 +132,19 @@ xf.sub('ui:intervals:connect', async ({apiKey, athleteId}) => {
     loadPlanned();
 });
 
-xf.sub('ui:intervals:import', async () => {
-    const result = await server.importIntervals();
+xf.sub('ui:body:source', async (source) => {
+    xf.dispatch('body:source', {status: 'loading', source});
+    const result = await server.setBodySource(source);
+    if(!result.ok) {
+        xf.dispatch('body:source', {status: 'error', source, error: errorText(result.error)});
+        return;
+    }
+    setRider(result.data);
+    xf.dispatch('body:source', {status: 'ok', source});
+});
+
+xf.sub('ui:body:sync', async () => {
+    const result = await server.syncBody();
     if(!result.ok) return notice(errorText(result.error));
     setRider(result.data);
     xf.dispatch('rider:saved');

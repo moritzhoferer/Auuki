@@ -7,7 +7,7 @@ built PWA, so the app and the API share one origin and need no CORS.
   session cookie remembers the rider on that device.
 - **Intervals.icu** with each rider's own API key: planned workouts (as .zwo), FTP
   and weight, and activity upload.
-- **Garmin Connect** upload through the unofficial
+- **Garmin Connect** upload, FTP and weight through the unofficial
   [`garminconnect`](https://github.com/cyberjunky/python-garminconnect) package. The
   password is used once to log in and is never stored. Only the tokens are kept.
 - **Rides** are stored per rider as FIT files.
@@ -76,14 +76,15 @@ All JSON. Errors are `{"error": {"message": CODE}}`.
 | `POST /api/riders` `{name, pin?}` | Create a rider and log in |
 | `POST /api/session` `{riderId, pin?}` | Log in. 403 `WRONG_PIN`, 429 `TOO_MANY_TRIES` (5 tries, then 60 s) |
 | `DELETE /api/session` | Log out |
-| `GET / PATCH / DELETE /api/me` | Current rider `{id, name, hasPin, ftp, weight, intervals:{connected, athleteId}, garmin:{connected}}`. PATCH: `name, pin, removePin, ftp, weight` |
+| `GET / PATCH / DELETE /api/me` | Current rider `{id, name, hasPin, ftp, weight, bodySource, intervals:{connected, athleteId}, garmin:{connected}}`. PATCH: `name, pin, removePin, ftp, weight` |
 | `PUT /api/me/intervals` `{apiKey, athleteId}` | Check the key and save it. Returns `{me, athlete:{ftp, weight}}` |
-| `POST /api/me/intervals/import` | Take FTP and weight from Intervals.icu |
 | `GET /api/me/intervals/events?oldest&newest` | Planned workouts with `workout_file_base64` |
 | `DELETE /api/me/intervals` | Forget the key |
 | `POST /api/me/garmin` `{email, password}` | `{status: 'ok' \| 'mfa', me}` |
 | `POST /api/me/garmin/mfa` `{code}` | Finish an MFA login (within 5 min) |
 | `DELETE /api/me/garmin` | Delete the tokens |
+| `PUT /api/me/body-source` `{source}` | `manual \| intervals \| garmin`: where FTP and weight come from. Returns the rider; when not manual the values are fetched first. Disconnecting that account resets it to manual |
+| `POST /api/me/body/sync` | Fetch FTP and weight again from the chosen source (the app calls it after login). Returns the rider |
 | `GET /api/me/rides` | Ride summaries, newest first |
 | `POST /api/me/rides` (multipart `file`, `summary` JSON) | Store a ride (max 20 MB) |
 | `GET /api/me/rides/{id}/file`, `DELETE /api/me/rides/{id}` | Download or delete |

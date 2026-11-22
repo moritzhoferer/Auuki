@@ -46,8 +46,10 @@ const server = Object.freeze({
 
     connectIntervals:    (apiKey, athleteId) => request('PUT', '/me/intervals', {apiKey, athleteId: athleteId || '0'}),
     disconnectIntervals: ()                  => request('DELETE', '/me/intervals'),
-    importIntervals:     ()                  => request('POST', '/me/intervals/import'),
     planned: (oldest, newest) => request('GET', `/me/intervals/events?oldest=${oldest}&newest=${newest}`),
+
+    setBodySource: (source) => request('PUT', '/me/body-source', {source}),
+    syncBody:      ()       => request('POST', '/me/body/sync'),
 
     connectGarmin:    (email, password) => request('POST', '/me/garmin', {email, password}),
     garminCode:       (code)            => request('POST', '/me/garmin/mfa', {code}),

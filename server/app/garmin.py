@@ -26,6 +26,33 @@ def default_factory(email: str | None = None, password: str | None = None, retur
     return Garmin(email, password, return_on_mfa=return_on_mfa)
 
 
+def _first(value):
+    return value[0] if isinstance(value, list) and value else value
+
+
+def _number(data, *keys) -> float:
+    data = _first(data)
+    if not isinstance(data, dict):
+        return 0
+    for key in keys:
+        if isinstance(data.get(key), (int, float)) and data[key] > 0:
+            return data[key]
+    return 0
+
+
+def body_settings(ftp_data, weight_data, profile=None) -> dict:
+    """{ftp, weight} from Garmin responses. Garmin reports weight in grams.
+
+    The shapes come from the unofficial API, so every key is optional."""
+    ftp = _number(ftp_data, "functionalThresholdPower", "ftp", "value")
+    weight = _number(weight_data, "weight")
+    if not weight and profile is not None:
+        weight = _number((profile() or {}).get("userData"), "weight")
+    if weight > 1000:
+        weight = weight / 1000
+    return {"ftp": int(round(ftp)), "weight": round(float(weight), 1)}
+
+
 class GarminAccounts:
     def __init__(self, tokens_dir: Callable[[str], Path], factory: Callable = default_factory):
         self.tokens_dir = tokens_dir
@@ -84,6 +111,16 @@ class GarminAccounts:
                 raise GarminError("Garmin login with the saved tokens failed") from error
             self.clients[rider_id] = api
         return self.clients[rider_id]
+
+    def body(self, rider_id: str) -> dict:
+        """Cycling FTP and latest weight (kg), 0 when Garmin has none. Blocking."""
+        with self.lock:
+            api = self._client(rider_id)
+            try:
+                return body_settings(api.get_cycling_ftp(), api.get_latest_weight(), api.get_user_profile)
+            except Exception as error:
+                self.clients.pop(rider_id, None)
+                raise GarminError("Garmin FTP/weight failed") from error
 
     def upload(self, rider_id: str, content: bytes) -> dict:
         """Upload a FIT file. Blocking: call from a worker thread."""

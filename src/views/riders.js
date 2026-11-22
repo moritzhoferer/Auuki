@@ -208,22 +208,12 @@ customElements.define('garmin-account', GarminAccount);
 
 
 //
-// <body-settings>  FTP and weight, with import from Intervals.icu
+// <body-source>    where FTP and weight come from: Intervals.icu, Garmin or by hand
+// <body-settings>  FTP and weight, editable when entered by hand
 //
-// FTP and weight from Intervals.icu, offered until saved. Kept here because the
-// setup's FTP step is created after the account was connected.
-let suggestion = {riderId: '', athlete: null};
-let currentRider = '';
-xf.sub('db:rider', (rider) => { currentRider = rider?.id ?? ''; });
-xf.sub('intervals:connected', (athlete) => {
-    suggestion = {riderId: currentRider, athlete: (athlete?.ftp || athlete?.weight) ? athlete : null};
-});
-xf.sub('rider:saved', () => { suggestion = {riderId: '', athlete: null}; });
-
 class BodySettings extends UIView {
     props() { return ['rider']; }
     config() {
-        this.on('intervals:connected', () => this.render());
         this.saved = false;
         this.on('rider:saved', () => {
             this.saved = true;
@@ -242,32 +232,72 @@ class BodySettings extends UIView {
     }
     render() {
         const rider = this.data.rider ?? {};
-        const s = equals(suggestion.riderId, rider.id) ? suggestion.athlete : null;
-        const offer = s ? `<div class="offer">
-                <p>Intervals.icu has ${[s.ftp ? `FTP ${s.ftp} W` : '', s.weight ? `${s.weight} kg` : ''].filter(Boolean).join(' and ')}.</p>
-                <button class="btn btn--primary" type="button" data-action="intervals:import">Use these</button>
-            </div>` : (rider.intervals?.connected ? `<button class="btn btn--ghost" type="button" data-action="intervals:import"
-                aria-label="Take FTP and weight from Intervals.icu">${icon('refresh')}<span>From Intervals.icu</span></button>` : '');
+        const source = sourceNames[rider.bodySource] ? rider.bodySource : 'manual';
+        const manual = equals(source, 'manual');
+        const lock = manual ? '' : 'readonly';
         this.innerHTML = `<form class="body-form">
-            ${offer}
             <div class="row">
                 <label class="field"><span>FTP</span>
-                    <span class="input-unit"><input name="ftp" type="number" inputmode="numeric" min="50" max="700" required value="${rider.ftp ?? 200}"><span>W</span></span></label>
+                    <span class="input-unit"><input name="ftp" type="number" inputmode="numeric" min="50" max="700" required ${lock} value="${rider.ftp ?? 200}"><span>W</span></span></label>
                 <label class="field"><span>Weight</span>
-                    <span class="input-unit"><input name="weight" type="number" inputmode="decimal" step="0.1" min="25" max="250" required value="${rider.weight ?? 75}"><span>kg</span></span></label>
+                    <span class="input-unit"><input name="weight" type="number" inputmode="decimal" step="0.1" min="25" max="250" required ${lock} value="${rider.weight ?? 75}"><span>kg</span></span></label>
             </div>
-            <div class="row"><button class="btn" type="submit">Save</button><span class="saved muted" role="status" ${this.saved ? '' : 'hidden'}>Saved</span></div>
+            ${manual ?
+                `<div class="row"><button class="btn" type="submit">Save</button><span class="saved muted" role="status" ${this.saved ? '' : 'hidden'}>Saved</span></div>` :
+                `<div class="row"><span class="muted">From ${sourceNames[source]}, updated when you open Auuki.</span>
+                    <button class="btn btn--ghost btn--small" type="button" data-action="body:sync"
+                        aria-label="Load FTP and weight from ${sourceNames[source]} now">${icon('refresh')}<span>Update now</span></button>
+                    <span class="saved muted" role="status" ${this.saved ? '' : 'hidden'}>Updated</span></div>`}
         </form>`;
     }
 }
 
 customElements.define('body-settings', BodySettings);
 
+const sourceNames = {intervals: 'Intervals.icu', garmin: 'Garmin Connect', manual: 'Enter by hand'};
+
+class BodySource extends UIView {
+    props() { return ['rider']; }
+    config() {
+        this.state = {status: '', source: '', error: ''};
+        this.on('body:source', (state) => {
+            this.state = {error: '', ...state};
+            this.update();
+        });
+        this.addEventListener('change', (e) => {
+            if(e.target.name === 'bodySource') xf.dispatch('ui:body:source', e.target.value);
+        }, this.signal);
+    }
+    render() {
+        const rider = this.data.rider ?? {};
+        const current = rider.bodySource ?? 'manual';
+        const connected = {intervals: rider.intervals?.connected, garmin: rider.garmin?.connected, manual: true};
+        const loading = equals(this.state.status, 'loading');
+        const options = ['intervals', 'garmin', 'manual'].map(key => {
+            const hint = connected[key] ? '' : `<span class="muted">Connect ${sourceNames[key]} first</span>`;
+            return `<label class="choice-row ${connected[key] ? '' : 'is-off'}">
+                <input type="radio" name="bodySource" value="${key}" ${equals(current, key) ? 'checked' : ''}
+                    ${connected[key] && !loading ? '' : 'disabled'}>
+                <span><span>${sourceNames[key]}</span>${hint}</span></label>`;
+        }).join('');
+        const values = equals(current, 'manual') ? '' :
+            `<p class="muted body-source--values" role="status">${loading ? 'Loading…' : `FTP ${rider.ftp} W · ${rider.weight} kg`}</p>`;
+        this.innerHTML = `<fieldset class="choice-group">
+                <legend>Where do FTP and weight come from?</legend>
+                ${options}
+            </fieldset>
+            ${values}
+            <p class="form-error" role="alert" ${equals(this.state.status, 'error') ? '' : 'hidden'}>${html(this.state.error)}</p>`;
+    }
+}
+
+customElements.define('body-source', BodySource);
+
 
 //
 // <rider-setup>  profile -> accounts -> FTP and weight -> sensors
 //
-const steps = ['profile', 'accounts', 'body', 'sensors'];
+const allSteps = ['profile', 'accounts', 'body', 'sensors'];
 const stepTitles = {
     profile:  'Add a rider',
     accounts: 'Connect your accounts',
@@ -276,7 +306,7 @@ const stepTitles = {
 };
 const stepHelp = {
     profile:  'Everyone on this home network sees the riders. A PIN keeps others out of your profile.',
-    accounts: 'Both are optional. You can connect them later in settings.',
+    accounts: 'Both are optional. You can connect them later in settings. Then choose where FTP and weight come from.',
     body:     'Targets in workouts are based on your FTP.',
     sensors:  'Connect what you have. Only a trainer or a power meter is needed to ride.',
 };
@@ -299,7 +329,8 @@ class RiderSetup extends UIView {
         this.addEventListener('click', (e) => {
             const $next = e.target.closest('[data-setup]');
             if(!$next) return;
-            const next = $next.dataset.setup;
+            let next = $next.dataset.setup;
+            if(equals(next, 'next')) next = this.next();
             if(equals(next, 'done')) {
                 xf.dispatch('ui:screen', 'start');
             } else {
@@ -315,11 +346,27 @@ class RiderSetup extends UIView {
         if(equals(this.data.screen, 'setup') && !this.data.rider && !equals(this.step, 'profile')) {
             this.step = 'profile';
             this.renderStep();
+            return;
         }
+        // the FTP choice changes how many steps there are
+        const $count = this.querySelector('.step-count');
+        if($count) $count.textContent = this.countText();
+    }
+    next() {
+        const steps = this.steps();
+        return steps[steps.indexOf(this.step) + 1] ?? 'done';
+    }
+    countText() {
+        const steps = this.steps();
+        return `Step ${steps.indexOf(this.step) + 1} of ${steps.length}`;
+    }
+    // FTP and weight from Intervals.icu or Garmin need no step of their own
+    steps() {
+        const manual = equals(this.data.rider?.bodySource ?? 'manual', 'manual');
+        return manual ? allSteps : allSteps.filter(step => !equals(step, 'body'));
     }
     renderStep() {
-        const index = steps.indexOf(this.step);
-        const next = steps[index + 1] ?? 'done';
+        const next = this.next();
         const body = {
             profile: `<form class="card profile-form">
                     <label class="field"><span>Name</span><input name="name" required maxlength="30" autocomplete="nickname"></label>
@@ -329,19 +376,20 @@ class RiderSetup extends UIView {
                         <button class="btn btn--ghost" type="button" data-action="screen" data-param="riders">Cancel</button>
                     </div>
                 </form>`,
-            accounts: `<div class="stack"><intervals-account class="card"></intervals-account><garmin-account class="card"></garmin-account></div>`,
+            accounts: `<div class="stack"><intervals-account class="card"></intervals-account><garmin-account class="card"></garmin-account>
+                <body-source class="card"></body-source></div>`,
             body: `<body-settings class="card"></body-settings>`,
             sensors: `<sensor-list class="card"></sensor-list><ant-device-request class="card"></ant-device-request>`,
         }[this.step];
 
         this.innerHTML = `<header class="screen--head">
-                <p class="muted step-count">Step ${index + 1} of ${steps.length}</p>
+                <p class="muted step-count">${this.countText()}</p>
                 <h1 tabindex="-1">${stepTitles[this.step]}</h1>
                 <p class="muted">${stepHelp[this.step]}</p>
             </header>
             ${body}
             ${equals(this.step, 'profile') ? '' : `<div class="row setup-nav">
-                <button class="btn btn--primary" data-setup="${next}">${equals(next, 'done') ? 'Done' : 'Next'}</button>
+                <button class="btn btn--primary" data-setup="next">${equals(next, 'done') ? 'Done' : 'Next'}</button>
                 ${equals(next, 'done') ? '' : `<button class="btn btn--ghost" data-setup="done">Skip setup</button>`}
             </div>`}`;
     }

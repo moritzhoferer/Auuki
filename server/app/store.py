@@ -173,6 +173,7 @@ class Store:
             "hasPin": bool(rider.get("pin")),
             "ftp": rider.get("ftp", 200),
             "weight": rider.get("weight", 75),
+            "bodySource": rider.get("bodySource", "manual"),
             "intervals": {
                 "connected": bool(intervals.get("apiKey")),
                 "athleteId": intervals.get("athleteId", ""),

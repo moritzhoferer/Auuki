@@ -85,6 +85,15 @@ class FakeGarmin:
             raise RuntimeError("bad code")
         return None, None
 
+    def get_cycling_ftp(self):
+        return {"functionalThresholdPower": 281, "sport": "CYCLING"}
+
+    def get_latest_weight(self):
+        return {"weight": 70600.0, "date": 1795300000000}
+
+    def get_user_profile(self):
+        return {"userData": {"weight": 71000.0}}
+
     def upload_activity(self, path):
         with open(path, "rb") as f:
             self.uploads.append(f.read())
@@ -225,13 +234,47 @@ def test_rejected_key_is_not_stored(tmp_path):
     assert client.get("/api/me").json()["intervals"]["connected"] is False
 
 
-def test_import_ftp_and_weight(tmp_path):
+def test_body_source_intervals(tmp_path):
+    client = make_client(tmp_path)
+    me = rider(client)
+    assert me["bodySource"] == "manual"
+    assert client.put("/api/me/body-source", json={"source": "intervals"}).status_code == 409
+    with_intervals(client)
+    me = client.put("/api/me/body-source", json={"source": "intervals"}).json()
+    assert (me["bodySource"], me["ftp"], me["weight"]) == ("intervals", 295, 72.4)
+
+    client.patch("/api/me", json={"ftp": 200})
+    me = client.post("/api/me/body/sync").json()
+    assert me["ftp"] == 295
+
+    # disconnecting the source goes back to manual, values stay
+    me = client.delete("/api/me/intervals").json()
+    assert (me["bodySource"], me["ftp"]) == ("manual", 295)
+
+
+def test_body_source_garmin(tmp_path):
     client = make_client(tmp_path)
     rider(client)
-    assert client.post("/api/me/intervals/import").status_code == 409
-    with_intervals(client)
-    me = client.post("/api/me/intervals/import").json()
-    assert (me["ftp"], me["weight"]) == (295, 72.4)
+    assert client.put("/api/me/body-source", json={"source": "garmin"}).status_code == 409
+    client.post("/api/me/garmin", json={"email": "a@b.c", "password": "pw"})
+    me = client.put("/api/me/body-source", json={"source": "garmin"}).json()
+    assert (me["bodySource"], me["ftp"], me["weight"]) == ("garmin", 281, 70.6)
+    me = client.delete("/api/me/garmin").json()
+    assert me["bodySource"] == "manual"
+
+
+def test_body_source_rejects_unknown(tmp_path):
+    client = make_client(tmp_path)
+    rider(client)
+    assert client.put("/api/me/body-source", json={"source": "strava"}).status_code == 422
+    assert client.post("/api/me/body/sync").json()["bodySource"] == "manual"
+
+
+def test_garmin_body_settings_shapes():
+    from app.garmin import body_settings
+    assert body_settings([{"functionalThresholdPower": 250.4}], {"weight": 68000}) == {"ftp": 250, "weight": 68.0}
+    assert body_settings({}, {}, lambda: {"userData": {"weight": 71000}}) == {"ftp": 0, "weight": 71.0}
+    assert body_settings(None, None) == {"ftp": 0, "weight": 0.0}
 
 
 def test_events_keep_only_workouts_with_a_file(tmp_path):

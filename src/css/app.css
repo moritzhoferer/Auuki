@@ -184,12 +184,10 @@ h1:focus { outline: none; }
 .btn--icon { width: 44px; padding: 0; }
 .btn--icon.btn--small { width: 36px; }
 .btn--back { padding-left: 8px; }
-.btn--play {
-    width: 64px; min-height: 64px;
-    border-radius: 50%;
-    background: var(--accent); border-color: var(--accent); color: var(--on-accent);
-}
-.btn--play .icon { width: 28px; height: 28px; }
+/* same shape as the other controls, the accent colour marks it as the main one */
+.btn--play { width: 56px; background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn--play:hover { background: #3a7cf0; }
+.btn--play .icon { width: 24px; height: 24px; }
 
 .btn[aria-pressed="true"] {
     background: var(--accent);
@@ -229,6 +227,25 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { border-color
 .input-unit > span { color: var(--muted); }
 
 .form-error { color: var(--out); font-size: .9rem; }
+
+/* radio choices: one row per option, the whole row is the target */
+.choice-group { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
+.choice-group legend { padding: 0; margin-bottom: 8px; font-weight: 700; }
+.choice-row {
+    display: flex; align-items: center; gap: 12px;
+    min-height: 48px; padding: 8px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg); cursor: pointer;
+}
+.choice-row:has(input:checked) { border-color: var(--accent); background: #1b2540; }
+.choice-row.is-off { cursor: not-allowed; opacity: .6; }
+.choice-row input { width: 20px; min-height: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: none; }
+.choice-row > span { display: flex; flex-direction: column; }
+.choice-row .muted { font-size: .85rem; }
+body-source { display: flex; flex-direction: column; gap: 8px; }
+/* settings shows the values in the fields below */
+[data-screen="settings"] .body-source--values { display: none; }
+input[readonly] { color: var(--muted); border-style: dashed; }
 
 form.body-form, form.pin-form, form.profile-form { display: flex; flex-direction: column; gap: var(--gap); }
 
@@ -363,6 +380,7 @@ main { padding: var(--pad); }
 .step-count { color: var(--muted); font-size: .9rem; }
 .setup-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: var(--gap); }
 rider-setup { display: flex; flex-direction: column; gap: calc(var(--gap) * 1.5); }
+rider-setup .screen--head { flex-direction: column; align-items: flex-start; gap: 4px; }
 
 /* start */
 .start-layout { display: grid; gap: calc(var(--gap) * 1.5); }
@@ -534,17 +552,16 @@ interval-block { display: block; }
     font-weight: 700;
     line-height: 1.05;
     font-variant-numeric: tabular-nums;
-    text-align: center;
 }
 interval-block.final .rp-interval--countdown { color: var(--near); }
 .rp-interval--progress { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .rp-interval--progress-bar { height: 100%; width: 0; background: var(--accent-2); transition: width .9s linear; }
 
-.ride-elapsed { display: flex; flex-direction: column; align-items: center; }
+.ride-elapsed { display: flex; flex-direction: column; }
 .ride-elapsed--value { font-size: clamp(2.6rem, 12vw, 4.5rem); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.05; }
 
 /* pacing */
-pacing-box { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+pacing-box { display: flex; flex-direction: column; gap: 4px; }
 .rp-pacing--status { min-height: 1.4em; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: .9rem; }
 .rp-pacing--value { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
 .rp-pacing--power { font-size: clamp(3.4rem, 18vw, 6rem); font-weight: 700; line-height: 1; }
@@ -597,8 +614,10 @@ lap-power-status[data-zone="out"]  { color: var(--out); }
 
 /* next interval */
 next-interval { display: flex; flex-direction: column; gap: 2px; }
-.rp-next--label { font-weight: 700; font-size: 1.1rem; }
-.rp-next--meta { color: var(--muted); font-variant-numeric: tabular-nums; }
+.rp-next--row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.rp-next--what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-next--label:not(:empty)::after { content: ' · '; }
+.rp-next--target { color: var(--accent); white-space: nowrap; }
 next-interval.final { border-color: var(--near); }
 
 /* profile */
@@ -631,7 +650,7 @@ target-stepper { grid-area: target; justify-self: end; display: flex; align-item
 .stepper--label { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; }
 .stepper--reading { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stepper--unit { margin-left: 2px; color: var(--muted); font-size: .85rem; font-weight: 400; }
-ride-controls { grid-area: controls; display: flex; align-items: center; justify-content: center; gap: 20px; }
+ride-controls { grid-area: controls; display: flex; align-items: center; justify-content: center; gap: 12px; }
 
 
 /* ---------- editor ---------- */
@@ -712,7 +731,7 @@ button.editor--td { cursor: pointer; }
         position: absolute; width: 1px; height: 1px;
         overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
     }
-    .screen--head { flex-wrap: nowrap; }
+    .screen--head:has(.btn--back) { flex-wrap: nowrap; }
     .screen--head h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .app-bar { gap: 4px; padding: 0 4px; }
@@ -720,14 +739,17 @@ button.editor--td { cursor: pointer; }
     .rider-chip { padding: 0 4px; }
     .badge { width: 32px; height: 32px; }
 
+    /* one row each: mode, target, controls */
     .ride-bar {
-        grid-template-columns: auto 1fr;
-        grid-template-areas: "mode target" "controls controls";
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "mode" "target" "controls";
         padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom));
         gap: 8px;
     }
-    ride-controls { gap: 20px; }
-    .btn--play { width: 56px; min-height: 56px; }
+    ride-controls { gap: 12px; }
+    .ride-bar .segmented { justify-self: stretch; }
+    target-stepper { justify-self: stretch; }
+    target-stepper .stepper--value { flex: 1; }
     .ride-interval, .ride-pacing, .ride-next, .ride-profile, .ride-elapsed, .tile { padding: 10px 12px; }
     .tile--value { font-size: 1.5rem; }
     ride-profile svg { height: 70px; }

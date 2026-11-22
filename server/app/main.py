@@ -9,6 +9,7 @@ import logging
 import re
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
 import httpx
 from fastapi import Depends, FastAPI, File, Form, Request, Response, UploadFile
@@ -52,6 +53,10 @@ class RiderChanges(BaseModel):
     pin: str | None = Field(default=None, pattern=r"^(\d{4,8})?$")
     ftp: int | None = Field(default=None, ge=50, le=700)
     weight: float | None = Field(default=None, ge=25, le=250)
+
+
+class BodySource(BaseModel):
+    source: Literal["manual", "intervals", "garmin"]
 
 
 class IntervalsAccount(BaseModel):
@@ -188,13 +193,10 @@ def create_app(
 
     @app.delete("/api/me/intervals")
     async def disconnect_intervals(rider: dict = Depends(current_rider)):
-        return store.public(store.update(rider["id"], intervals=None))
-
-    @app.post("/api/me/intervals/import")
-    async def import_intervals(rider: dict = Depends(current_rider)):
-        athlete = await call_intervals(intervals.athlete(intervals_account(rider)))
-        values = {k: v for k, v in body_settings(athlete).items() if v}
-        return store.public(store.update(rider["id"], **values))
+        changes = {"intervals": None}
+        if rider.get("bodySource") == "intervals":
+            changes["bodySource"] = "manual"
+        return store.public(store.update(rider["id"], **changes))
 
     @app.get("/api/me/intervals/events")
     async def intervals_events(oldest: str, newest: str, rider: dict = Depends(current_rider)):
@@ -214,9 +216,36 @@ def create_app(
         status = await call_garmin(garmin.mfa, rider["id"], body.code)
         return {"status": status, "me": store.public(rider)}
 
+    # --- FTP and weight: entered by hand, or taken from Intervals.icu or Garmin -------
+
+    async def body_from(rider: dict, source: str) -> dict:
+        if source == "intervals":
+            athlete = await call_intervals(intervals.athlete(intervals_account(rider)))
+            return body_settings(athlete)
+        if not store.garmin_connected(rider["id"]):
+            raise ApiError(409, "GARMIN_NOT_CONNECTED")
+        return await call_garmin(garmin.body, rider["id"])
+
+    @app.put("/api/me/body-source")
+    async def set_body_source(body: BodySource, rider: dict = Depends(current_rider)):
+        changes = {"bodySource": body.source}
+        if body.source != "manual":
+            changes.update({k: v for k, v in (await body_from(rider, body.source)).items() if v})
+        return store.public(store.update(rider["id"], **changes))
+
+    @app.post("/api/me/body/sync")
+    async def sync_body(rider: dict = Depends(current_rider)):
+        source = rider.get("bodySource", "manual")
+        if source == "manual":
+            return store.public(rider)
+        values = {k: v for k, v in (await body_from(rider, source)).items() if v}
+        return store.public(store.update(rider["id"], **values))
+
     @app.delete("/api/me/garmin")
     async def disconnect_garmin(rider: dict = Depends(current_rider)):
         garmin.disconnect(rider["id"])
+        if rider.get("bodySource") == "garmin":
+            rider = store.update(rider["id"], bodySource="manual")
         return store.public(rider)
 
     # --- rides --------------------------------------------------------------------------

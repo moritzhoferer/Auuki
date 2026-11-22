@@ -183,7 +183,10 @@
                         <next-interval class="ride-next workout-only">
                             <span class="tile--label">Up next</span>
                             <span class="rp-next--label"></span>
-                            <span class="rp-next--meta"><span class="rp-next--duration"></span> <span class="rp-next--target"></span></span>
+                            <span class="rp-next--row">
+                                <span class="rp-next--what"><span class="rp-next--label"></span><span class="rp-next--duration"></span></span>
+                                <span class="rp-next--target"></span>
+                            </span>
                         </next-interval>
 
                         <ride-profile class="ride-profile workout-only">
@@ -234,6 +237,7 @@
                 </header>
                 <section class="card stack" aria-labelledby="settings-body">
                     <h2 id="settings-body" class="panel--title">FTP and weight</h2>
+                    <body-source></body-source>
                     <body-settings></body-settings>
                 </section>
                 <section class="stack" aria-labelledby="settings-accounts">
