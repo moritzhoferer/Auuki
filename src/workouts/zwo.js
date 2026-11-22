@@ -153,10 +153,10 @@ function assignMessages(intervals, children) {
 
             for(let c = 0; c < children.length; c++) {
                 const event      = children[c];
-                const timeoffset = event.timeoffset;
+                // no timeoffset means the start of the block (e.g. Intervals.icu step text)
+                const timeoffset = existance(event.timeoffset, 0);
 
                 if(!equals(event.element, 'TextEvent')) continue;
-                if(!exists(timeoffset)) continue;
                 if(timeoffset < start || timeoffset >= end) continue;
 
                 messages.push(toMessage(event, timeoffset - start));

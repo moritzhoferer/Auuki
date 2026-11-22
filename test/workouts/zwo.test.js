@@ -271,6 +271,34 @@ describe('Zwo', () => {
 
         expect(res).toStrictEqual(expected);
     });
+
+    test('Zwo.readToInterval textevent without timeoffset starts with the block', () => {
+        // as exported by Intervals.icu for step text
+        const input = `
+        <workout_file>
+            <workout>
+                <SteadyState show_avg="1" Power="0.55" Duration="1800">
+                    <textevent message="Press lap" duration="10"/>
+                </SteadyState>
+                <SteadyState show_avg="1" Power="0.91" Duration="1500"/>
+                <IntervalsT Repeat="2" OnDuration="10" OffDuration="5" OnPower="1.2" OffPower="0.5">
+                    <textevent message="Go" duration="5"/>
+                </IntervalsT>
+            </workout>
+        </workout_file>`;
+
+        const res = zwo.readToInterval(input);
+
+        expect(res.intervals[0].steps[0].messages).toStrictEqual([
+            {duration: 10, offset: 0, message: 'Press lap'},
+        ]);
+        expect(res.intervals[1].steps[0].messages).toBeUndefined();
+        expect(res.intervals[2].steps[0].messages).toStrictEqual([
+            {duration: 5, offset: 0, message: 'Go'},
+        ]);
+        expect(res.intervals[3].steps[0].messages).toBeUndefined();
+        expect(res.intervals[4].steps[0].messages).toBeUndefined();
+    });
 });
 
 describe('Zwo SteadyState power range', () => {
