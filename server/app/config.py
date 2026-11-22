@@ -1,4 +1,7 @@
-"""Settings from environment variables (and server/.env when present)."""
+"""Settings from environment variables (and server/.env when present).
+
+Rider accounts and their Intervals.icu / Garmin logins live in DATA_DIR, not here.
+"""
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,33 +23,19 @@ def load_env_file(path: Path = SERVER_DIR / ".env") -> None:
 
 @dataclass(frozen=True)
 class Settings:
-    intervals_api_key: str = ""
-    intervals_athlete_id: str = "0"
-    intervals_base_url: str = "https://intervals.icu"
-    garmin_email: str = ""
-    garmin_password: str = ""
-    garmin_tokenstore: str = str(Path.home() / ".garminconnect")
+    data_dir: str = str(SERVER_DIR / "data")
     static_dir: str = str(SERVER_DIR.parent / "dist")
-
-    @property
-    def intervals_enabled(self) -> bool:
-        return bool(self.intervals_api_key)
-
-    @property
-    def garmin_enabled(self) -> bool:
-        # tokens alone are enough once the one-time login has run
-        return bool(self.garmin_email) or Path(self.garmin_tokenstore).expanduser().exists()
+    intervals_base_url: str = "https://intervals.icu"
+    # set when the app is served over https, so the session cookie is https only
+    cookie_secure: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
         load_env_file()
         defaults = cls()
         return cls(
-            intervals_api_key=os.getenv("INTERVALS_API_KEY", ""),
-            intervals_athlete_id=os.getenv("INTERVALS_ATHLETE_ID", "") or "0",
-            intervals_base_url=os.getenv("INTERVALS_BASE_URL", defaults.intervals_base_url),
-            garmin_email=os.getenv("GARMIN_EMAIL", ""),
-            garmin_password=os.getenv("GARMIN_PASSWORD", ""),
-            garmin_tokenstore=os.getenv("GARMIN_TOKENSTORE", defaults.garmin_tokenstore),
+            data_dir=os.getenv("DATA_DIR", defaults.data_dir),
             static_dir=os.getenv("STATIC_DIR", defaults.static_dir),
+            intervals_base_url=os.getenv("INTERVALS_BASE_URL", defaults.intervals_base_url),
+            cookie_secure=os.getenv("COOKIE_SECURE", "").lower() in ("1", "true", "yes"),
         )

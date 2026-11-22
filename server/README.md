@@ -1,30 +1,36 @@
 # Auuki home server
 
-A small FastAPI app that replaces api.auuki.com for a single rider. It also
-serves the built PWA, so the app and the API share one origin and need no CORS.
+A small FastAPI app for a home network. It replaces api.auuki.com and also serves the
+built PWA, so the app and the API share one origin and need no CORS.
 
-- **Intervals.icu** with your personal API key: planned workouts (as .zwo), athlete
-  FTP/weight, and activity upload.
-- **Garmin Connect** activity upload through the unofficial
-  [`garminconnect`](https://github.com/cyberjunky/python-garminconnect) package.
-- No accounts. Anyone who can reach the server can use it, so it binds to
-  `127.0.0.1` only.
+- **Riders**: a "Who's riding?" list, each with an optional 4–8 digit PIN. A signed
+  session cookie remembers the rider on that device.
+- **Intervals.icu** with each rider's own API key: planned workouts (as .zwo), FTP
+  and weight, and activity upload.
+- **Garmin Connect** upload through the unofficial
+  [`garminconnect`](https://github.com/cyberjunky/python-garminconnect) package. The
+  password is used once to log in and is never stored. Only the tokens are kept.
+- **Rides** are stored per rider as FIT files.
+
+Everything lives in `DATA_DIR` (default `server/data`, in the container `/data`):
+
+```
+secret.key                 cookie signing key, created on first start
+profiles.json              riders, PIN hashes, Intervals.icu keys (0600)
+garmin/<rider>/            Garmin tokens (0700 / 0600)
+rides/<rider>/index.json   ride summaries and upload status
+rides/<rider>/<id>.fit
+```
+
+Keys and tokens are never returned to the browser.
 
 ## Setup
 
 ```bash
-cp server/.env.example server/.env      # add INTERVALS_API_KEY, INTERVALS_ATHLETE_ID
+cp server/.env.example server/.env      # optional: DATA_DIR, COOKIE_SECURE, STATIC_DIR
 ```
 
-Garmin (optional). Do the one-time login, which can ask for an MFA code and saves
-tokens:
-
-```bash
-cd server && uv run python -m app.garmin_login            # local
-docker compose run --rm -it auuki python -m app.garmin_login  # container
-```
-
-After that, the email and password can be removed from `.env`.
+Riders, Intervals.icu and Garmin are set up in the app (first start: "Add a rider").
 
 ## Run
 
@@ -33,6 +39,11 @@ Container (app + API on http://localhost:8080):
 ```bash
 docker compose up -d --build
 ```
+
+By default it listens on 127.0.0.1 only. To use it from other devices, set
+`AUUKI_BIND=0.0.0.0`. Web Bluetooth only works in a secure context, so other devices
+need HTTPS: put a reverse proxy with a certificate in front and set
+`COOKIE_SECURE=true`.
 
 Local development:
 
@@ -55,18 +66,29 @@ cd server && uv run pytest
 
 Intervals.icu and Garmin are mocked in the tests.
 
-## Endpoints (the subset of the api.auuki.com contract the PWA uses)
+## Endpoints
+
+All JSON. Errors are `{"error": {"message": CODE}}`.
 
 | Endpoint | Behaviour |
 |---|---|
-| `POST /api/rpc` `status_handler` | Logged in as `home`. `intervals` / `garmin` are true when configured. |
-| `POST /api/intervals/events?oldest&newest` | `GET /api/v1/athlete/{id}/events.json?category=WORKOUT&ext=zwo` |
-| `POST /api/intervals/athlete` | `GET /api/v1/athlete/{id}` |
-| `POST /api/intervals/upload` (multipart `file`, `name`) | `POST /api/v1/athlete/{id}/activities` |
-| `POST /api/garmin/upload` (multipart `file`) | Garmin Connect upload. A duplicate (409) counts as success. |
-| `/api/intervals/oauth/code`, `/deauthorize` | No-op 200 |
-| any other `/api/*` (accounts, Strava, TrainingPeaks) | 404 |
+| `GET /api/riders` | `[{id, name, hasPin}]` |
+| `POST /api/riders` `{name, pin?}` | Create a rider and log in |
+| `POST /api/session` `{riderId, pin?}` | Log in. 403 `WRONG_PIN`, 429 `TOO_MANY_TRIES` (5 tries, then 60 s) |
+| `DELETE /api/session` | Log out |
+| `GET / PATCH / DELETE /api/me` | Current rider `{id, name, hasPin, ftp, weight, intervals:{connected, athleteId}, garmin:{connected}}`. PATCH: `name, pin, removePin, ftp, weight` |
+| `PUT /api/me/intervals` `{apiKey, athleteId}` | Check the key and save it. Returns `{me, athlete:{ftp, weight}}` |
+| `POST /api/me/intervals/import` | Take FTP and weight from Intervals.icu |
+| `GET /api/me/intervals/events?oldest&newest` | Planned workouts with `workout_file_base64` |
+| `DELETE /api/me/intervals` | Forget the key |
+| `POST /api/me/garmin` `{email, password}` | `{status: 'ok' \| 'mfa', me}` |
+| `POST /api/me/garmin/mfa` `{code}` | Finish an MFA login (within 5 min) |
+| `DELETE /api/me/garmin` | Delete the tokens |
+| `GET /api/me/rides` | Ride summaries, newest first |
+| `POST /api/me/rides` (multipart `file`, `summary` JSON) | Store a ride (max 20 MB) |
+| `GET /api/me/rides/{id}/file`, `DELETE /api/me/rides/{id}` | Download or delete |
+| `POST /api/me/rides/{id}/upload/garmin` | Upload. A duplicate (409 from Garmin) counts as success |
+| any other `/api/*` | 404 |
 
-Errors: when a service isn't configured the server returns 503, and when the upstream
-service fails it returns 502. It never returns 403, because the PWA treats 403 as
-"show the login form".
+401 `NOT_LOGGED_IN` means "show Who's riding?". 409 `*_NOT_CONNECTED` means the
+account isn't set up. 502 means the upstream service failed.

@@ -86,12 +86,8 @@ class Watch {
         xf.sub('ui:watchResume',  e => { self.resume();         });
         xf.sub('ui:watchLap',     e => { self.lap();            });
         xf.sub('ui:watchBack',    e => { self.back();           });
-        xf.sub('ui:watchStop',    e => {
-            const stop = confirm('Confirm Stop?');
-            if(stop) {
-                self.stop();
-            }
-        });
+        // the finish sheet asks save / resume / discard before this
+        xf.sub('ui:watchStop',    e => { self.stop();           });
     }
     isStarted()        { return this.state        === 'started'; };
     isPaused()         { return this.state        === 'paused'; };

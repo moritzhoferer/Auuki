@@ -1,29 +1,71 @@
-"""Single-user backend for a self-hosted Auuki.
+"""Backend for a self-hosted Auuki shared by a few riders on a home network.
 
-Implements the subset of the api.auuki.com contract the PWA uses (see CLAUDE.md),
-backed by an Intervals.icu API key and an optional Garmin Connect upload.
-There are no accounts: whoever can reach the server is "logged in", so bind it
-to 127.0.0.1 (see compose.yaml).
+Each rider has a profile (optional PIN), their own Intervals.icu API key and Garmin
+login, and their rides as FIT files. The PWA is served from the same origin, so the
+session is a plain HttpOnly cookie and no CORS is needed.
 """
+import json
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Request, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from .config import Settings
-from .garmin import GarminError, GarminUploader
-from .intervals import Intervals, IntervalsError
+from .garmin import GarminAccounts, GarminError
+from .intervals import Intervals, IntervalsError, body_settings
+from .store import UPLOAD_SERVICES, Store, hash_pin
 
 log = logging.getLogger("auuki")
 
+COOKIE = "auuki_session"
+MAX_FIT_BYTES = 20 * 1024 * 1024
+PIN = r"^\d{4,8}$"
+DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-def error(status: int, message: str) -> JSONResponse:
-    return JSONResponse({"error": {"message": message}}, status_code=status)
+
+class ApiError(Exception):
+    def __init__(self, status: int, message: str):
+        self.status = status
+        self.message = message
+
+
+class NewRider(BaseModel):
+    name: str = Field(min_length=1, max_length=30)
+    pin: str | None = Field(default=None, pattern=PIN)
+
+
+class Login(BaseModel):
+    rider: str
+    pin: str | None = None
+
+
+class RiderChanges(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=30)
+    # "" removes the PIN
+    pin: str | None = Field(default=None, pattern=r"^(\d{4,8})?$")
+    ftp: int | None = Field(default=None, ge=50, le=700)
+    weight: float | None = Field(default=None, ge=25, le=250)
+
+
+class IntervalsAccount(BaseModel):
+    apiKey: str = Field(min_length=8, max_length=200)
+    athleteId: str = Field(default="0", pattern=r"^(0|i?\d{1,12})$")
+
+
+class GarminLogin(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class GarminCode(BaseModel):
+    code: str = Field(pattern=r"^\d{4,8}$")
 
 
 def create_app(
@@ -32,111 +74,219 @@ def create_app(
     garmin_factory=None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
-    intervals = Intervals(settings, transport=intervals_transport)
-    garmin = GarminUploader(settings, **({"factory": garmin_factory} if garmin_factory else {}))
+    store = Store(settings.data_dir)
+    intervals = Intervals(settings.intervals_base_url, transport=intervals_transport)
+    garmin = GarminAccounts(store.garmin_dir, **({"factory": garmin_factory} if garmin_factory else {}))
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        log.info(
-            "intervals: %s, garmin: %s, static: %s",
-            "on" if settings.intervals_enabled else "off",
-            "on" if settings.garmin_enabled else "off",
-            settings.static_dir,
-        )
+        log.info("data: %s, static: %s", settings.data_dir, settings.static_dir)
         yield
         await intervals.close()
 
     app = FastAPI(title="Auuki home API", lifespan=lifespan, docs_url=None, redoc_url=None)
 
-    def intervals_unavailable() -> JSONResponse | None:
-        if not settings.intervals_enabled:
-            # not 403: the PWA treats 403 as "show the login form"
-            return error(503, "INTERVALS_NOT_CONFIGURED")
-        return None
+    @app.exception_handler(ApiError)
+    async def api_error(_request: Request, error: ApiError):
+        return JSONResponse({"error": {"message": error.message}}, status_code=error.status)
+
+    def current_rider(request: Request) -> dict:
+        rider = store.session_rider(request.cookies.get(COOKIE))
+        if rider is None:
+            raise ApiError(401, "NOT_LOGGED_IN")
+        return rider
+
+    def start_session(response: Response, rider: dict) -> dict:
+        response.set_cookie(
+            COOKIE, store.session_token(rider["id"]), max_age=180 * 24 * 3600,
+            httponly=True, samesite="lax", secure=settings.cookie_secure,
+        )
+        return store.public(rider)
+
+    def intervals_account(rider: dict) -> dict:
+        account = rider.get("intervals") or {}
+        if not account.get("apiKey"):
+            raise ApiError(409, "INTERVALS_NOT_CONNECTED")
+        return account
 
     async def call_intervals(coro):
         try:
             return await coro
         except IntervalsError as e:
             log.warning("intervals.icu %s: %s", e.status, e.detail)
-            return error(502, f"INTERVALS_{e.status}")
+            if e.status in (401, 403):
+                raise ApiError(400, "INTERVALS_KEY_REJECTED")
+            raise ApiError(502, f"INTERVALS_{e.status}")
         except httpx.HTTPError as e:
             log.warning("intervals.icu unreachable: %s", e)
-            return error(502, "INTERVALS_UNREACHABLE")
+            raise ApiError(502, "INTERVALS_UNREACHABLE")
 
-    # --- status --------------------------------------------------------------
-
-    @app.post("/api/rpc")
-    async def rpc(request: Request):
+    async def call_garmin(fn, *args):
         try:
-            body = await request.json()
-        except Exception:
-            body = {}
-        if body.get("method") != "status_handler":
-            return error(404, "UNKNOWN_METHOD")
-        return {
-            "id": body.get("id"),
-            "result": {
-                "identifier": "home",
-                # OAuth client ids; not used, connections are configured on the server
-                "services": {"strava": 0, "intervals": 0, "trainingPeaks": 0},
-                "strava": False,
-                "intervals": settings.intervals_enabled,
-                "trainingPeaks": False,
-                "garmin": settings.garmin_enabled,
-            },
-        }
-
-    # --- intervals.icu -------------------------------------------------------
-
-    @app.post("/api/intervals/events")
-    async def intervals_events(oldest: str, newest: str):
-        return intervals_unavailable() or await call_intervals(intervals.events(oldest, newest))
-
-    @app.post("/api/intervals/athlete")
-    async def intervals_athlete():
-        return intervals_unavailable() or await call_intervals(intervals.athlete_profile())
-
-    @app.post("/api/intervals/upload")
-    async def intervals_upload(file: UploadFile = File(...), name: str | None = Form(None)):
-        if (unavailable := intervals_unavailable()):
-            return unavailable
-        content = await file.read()
-        return await call_intervals(intervals.upload(content, "auuki.fit", name))
-
-    @app.post("/api/intervals/oauth/code")
-    @app.post("/api/intervals/deauthorize")
-    async def intervals_noop():
-        # connection is the API key on the server, nothing to (de)authorize
-        return {"result": {"success": True}}
-
-    # --- garmin ----------------------------------------------------------------
-
-    @app.post("/api/garmin/upload")
-    async def garmin_upload(file: UploadFile = File(...), name: str | None = Form(None)):
-        if not settings.garmin_enabled:
-            return error(503, "GARMIN_NOT_CONFIGURED")
-        content = await file.read()
-        try:
-            result = await run_in_threadpool(garmin.upload, content)
+            return await run_in_threadpool(fn, *args)
         except GarminError as e:
-            log.warning("garmin: %s (%s)", e, e.__cause__.__class__.__name__ if e.__cause__ else "")
-            return error(502, "GARMIN_UPLOAD_FAILED")
-        return {"result": result}
+            cause = e.__cause__.__class__.__name__ if e.__cause__ else ""
+            log.warning("garmin: %s (%s)", e, cause)
+            raise ApiError(502, "GARMIN_FAILED")
 
-    # --- everything else under /api (accounts, strava, trainingpeaks) -----------
+    # --- riders and session -------------------------------------------------------
 
-    @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-    async def not_available(path: str):
-        return error(404, "NOT_AVAILABLE")
+    @app.get("/api/riders")
+    async def riders():
+        return store.overview()
 
-    # --- the PWA -----------------------------------------------------------------
+    @app.post("/api/riders")
+    async def create_rider(body: NewRider, response: Response):
+        rider = store.create(body.name.strip(), body.pin)
+        return start_session(response, rider)
+
+    @app.post("/api/session")
+    async def login(body: Login, response: Response):
+        try:
+            rider = store.login(body.rider, body.pin)
+        except PermissionError:
+            raise ApiError(429, "TOO_MANY_TRIES")
+        if rider is None:
+            raise ApiError(403, "WRONG_PIN")
+        return start_session(response, rider)
+
+    @app.delete("/api/session")
+    async def logout(response: Response):
+        response.delete_cookie(COOKIE)
+        return {"ok": True}
+
+    @app.get("/api/me")
+    async def me(rider: dict = Depends(current_rider)):
+        return store.public(rider)
+
+    @app.patch("/api/me")
+    async def change_me(body: RiderChanges, rider: dict = Depends(current_rider)):
+        changes = body.model_dump(exclude_none=True)
+        if "pin" in changes:
+            changes["pin"] = hash_pin(changes["pin"]) if changes["pin"] else None
+        if "name" in changes:
+            changes["name"] = changes["name"].strip()
+        return store.public(store.update(rider["id"], **changes))
+
+    @app.delete("/api/me")
+    async def delete_me(response: Response, rider: dict = Depends(current_rider)):
+        garmin.disconnect(rider["id"])
+        store.delete(rider["id"])
+        response.delete_cookie(COOKIE)
+        return {"ok": True}
+
+    # --- intervals.icu ----------------------------------------------------------------
+
+    @app.put("/api/me/intervals")
+    async def connect_intervals(body: IntervalsAccount, rider: dict = Depends(current_rider)):
+        account = {"apiKey": body.apiKey.strip(), "athleteId": body.athleteId}
+        athlete = await call_intervals(intervals.athlete(account))
+        if body.athleteId == "0" and athlete.get("id"):
+            account["athleteId"] = str(athlete["id"])
+        updated = store.update(rider["id"], intervals=account)
+        return {"me": store.public(updated), "athlete": body_settings(athlete)}
+
+    @app.delete("/api/me/intervals")
+    async def disconnect_intervals(rider: dict = Depends(current_rider)):
+        return store.public(store.update(rider["id"], intervals=None))
+
+    @app.post("/api/me/intervals/import")
+    async def import_intervals(rider: dict = Depends(current_rider)):
+        athlete = await call_intervals(intervals.athlete(intervals_account(rider)))
+        values = {k: v for k, v in body_settings(athlete).items() if v}
+        return store.public(store.update(rider["id"], **values))
+
+    @app.get("/api/me/intervals/events")
+    async def intervals_events(oldest: str, newest: str, rider: dict = Depends(current_rider)):
+        if not (DATE.match(oldest) and DATE.match(newest)):
+            raise ApiError(400, "INVALID_DATE")
+        return await call_intervals(intervals.events(intervals_account(rider), oldest, newest))
+
+    # --- garmin -------------------------------------------------------------------------
+
+    @app.post("/api/me/garmin")
+    async def connect_garmin(body: GarminLogin, rider: dict = Depends(current_rider)):
+        status = await call_garmin(garmin.login, rider["id"], body.email.strip(), body.password)
+        return {"status": status, "me": store.public(rider)}
+
+    @app.post("/api/me/garmin/mfa")
+    async def garmin_mfa(body: GarminCode, rider: dict = Depends(current_rider)):
+        status = await call_garmin(garmin.mfa, rider["id"], body.code)
+        return {"status": status, "me": store.public(rider)}
+
+    @app.delete("/api/me/garmin")
+    async def disconnect_garmin(rider: dict = Depends(current_rider)):
+        garmin.disconnect(rider["id"])
+        return store.public(rider)
+
+    # --- rides --------------------------------------------------------------------------
+
+    @app.get("/api/me/rides")
+    async def rides(rider: dict = Depends(current_rider)):
+        return store.rides(rider["id"])
+
+    @app.post("/api/me/rides")
+    async def add_ride(
+        file: UploadFile = File(...),
+        summary: str = Form("{}"),
+        rider: dict = Depends(current_rider),
+    ):
+        content = await file.read(MAX_FIT_BYTES + 1)
+        if not content or len(content) > MAX_FIT_BYTES:
+            raise ApiError(400, "INVALID_FILE")
+        try:
+            values = json.loads(summary)
+        except json.JSONDecodeError:
+            values = {}
+        return store.add_ride(rider["id"], content, values if isinstance(values, dict) else {})
+
+    def ride_path(rider: dict, ride_id: str) -> Path:
+        path = store.ride_file(rider["id"], ride_id)
+        if path is None:
+            raise ApiError(404, "NO_SUCH_RIDE")
+        return path
+
+    @app.get("/api/me/rides/{ride_id}/file")
+    async def ride_file(ride_id: str, rider: dict = Depends(current_rider)):
+        return FileResponse(ride_path(rider, ride_id), media_type="application/octet-stream",
+                            filename=f"auuki-{ride_id}.fit")
+
+    @app.delete("/api/me/rides/{ride_id}")
+    async def delete_ride(ride_id: str, rider: dict = Depends(current_rider)):
+        if not store.delete_ride(rider["id"], ride_id):
+            raise ApiError(404, "NO_SUCH_RIDE")
+        return {"ok": True}
+
+    @app.post("/api/me/rides/{ride_id}/upload/{service}")
+    async def upload_ride(ride_id: str, service: str, rider: dict = Depends(current_rider)):
+        if service not in UPLOAD_SERVICES:
+            raise ApiError(404, "NO_SUCH_SERVICE")
+        content = ride_path(rider, ride_id).read_bytes()
+        name = store.ride(rider["id"], ride_id).get("name")
+        try:
+            if service == "garmin":
+                if not store.garmin_connected(rider["id"]):
+                    raise ApiError(409, "GARMIN_NOT_CONNECTED")
+                await call_garmin(garmin.upload, rider["id"], content)
+            else:
+                await call_intervals(intervals.upload(intervals_account(rider), content, name))
+        except ApiError as e:
+            if e.status == 502:
+                store.set_upload(rider["id"], ride_id, service, "failed")
+            raise
+        return store.set_upload(rider["id"], ride_id, service, "done")
+
+    @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+    async def not_found(path: str):
+        raise ApiError(404, "NOT_FOUND")
+
+    # --- the PWA -------------------------------------------------------------------------
 
     @app.middleware("http")
     async def no_cache_for_html(request: Request, call_next):
         response = await call_next(request)
         path = request.url.path
-        if path == "/" or path.endswith(".html") or path.endswith("sw.js"):
+        if path == "/" or path.endswith(".html") or path.endswith("sw.js") or path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-cache"
         return response
 

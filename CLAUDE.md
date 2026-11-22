@@ -17,10 +17,12 @@ cd server && uv sync && uv run pytest   # home only: Python env via uv (pyprojec
 
 Baseline on upstream/develop @ 3442b6a (2026-11-22): 461 pass, 50 fail, 11 skipped
 (home with all feat branches incl. ride panel: 528 pass, same 50 fail; server: 24 pytest).
+Redesign (branch `redesign`, old views and their tests deleted): 519 pass, 20 fail,
+11 skipped; server: 28 pytest.
 The failures already exist upstream. They come from stale tests that import moved or
 removed modules (`src/ble/uuids.js`, `src/fit/activity.js`, `src/fit/profiles.js`, ...)
-and from jsdom gaps (`watch.test.js`, `moxy-graph.test.js`, `idb.test.js`). Don't fix
-them unless asked. Compare against this baseline instead.
+and from jsdom gaps (`idb.test.js`). Don't fix them unless asked. Compare against this
+baseline instead.
 
 Web Bluetooth and trainer behaviour can't be tested here. Write down exact on-bike
 steps for the user.
@@ -28,22 +30,26 @@ steps for the user.
 ## Architecture
 
 ```
-src/index.js        entry: imports db, views, ble, watch, course, lock; dispatches 'app:start'
+src/index.js        entry: imports db, app, views, ble, watch, course, lock; dispatches 'app:start'
 src/functions.js    xf event system + small FP helpers (exists, existance, equals, first, ...)
-src/db.js           single app state object (Proxy) + all reducers (xf.reg)
+src/db.js           single app state object (Proxy) + all reducers (xf.reg); 'app:ready' at the end
+src/app.js          (home) controller: riders/login, accounts, planned, rides, ride flow, screens
 src/models/         plain classes/closures: validation, persistence, domain logic
-  models.js         Model/Target base classes, PropInterval (power1s/power3s), Workout,
-                    Planned (Intervals/TP calendar), Activity, DockMode, ...
-  config.js         API_URI, PWA_URI, OAuth client ids (filled from status_handler)
-  api.js auth.js intervals.js strava.js training-peaks.js   backend client
-src/views/          Custom Elements (Web Components), mostly light DOM, markup in index.html
-  data-views.js     DataView base class + most tiles (power, targets, timers, ...)
-  workout-graph*.js workout profile rendering
+  models.js         Model/Target base classes, PropInterval (power1s/power3s), Workout, Session, ...
+  server.js         (home) fetch client for server/ (never throws, 401 -> 'server:logged-out')
+  sensors.js        the 7 sensor types: id, label, icon, ble/ant source, metrics
+  fields.js         ride tiles: label, unit, format, which sensors provide it
+  rides.js          encode/summarize/save a ride (server, IDB fallback), flush pending
+  profile.js range.js   workout profile blocks, pacing range and gauge math
+src/views/          Custom Elements, light DOM, markup in index.html
+  ui.js             UIView base, [data-action] clicks, <ui-tooltip>, screens and sheets
+  tiles.js sensors.js workouts.js rides.js riders.js screens.js ride.js editor.js keyboard.js
+  graph.js          only the line simplifier for course import
 src/watch.js        workout timer: walks intervals/steps, sets targets per step
 src/workouts/zwo.js .zwo <-> internal workout format
 src/ble/ src/ant/   device protocols (FTMS, FE-C over BLE, CPS, HRS, ...)
 src/fit/            FIT encode/decode (activity export, course import)
-src/css/flux.css    all styles; media queries are min-width based (>=1024px etc.)
+src/css/app.css     all styles; dark tokens on :root, mobile first, wide >= 760px
 src/sw.js           service worker. Registration is commented out in index.js on develop.
 ```
 
@@ -60,9 +66,10 @@ All communication goes through `window` CustomEvents:
 - `xf.create(db)` wraps db in a Proxy. **Every assignment `db.x = v` dispatches
   `db:x`.** That is how views react. Reassign (`db.list = db.list`) to force an update.
 
-Naming conventions: `ui:*` are user intents (`ui:power-target-set`, `ui:mode-set`).
-`watch:*` are timer outputs. `action:*` are UI state machines (auth, planned list).
-`ble:*`/`ant:*` come from devices. `services` / `account` carry backend status.
+Naming conventions: `ui:*` are user intents (`ui:power-target-set`, `ui:mode-set`,
+`ui:ride:start`, `ui:rider:pick`). `watch:*` are timer outputs. `ble:*`/`ant:*` come
+from devices. Results from app.js: `rider:login-failed`, `account:error`,
+`intervals:connected`, `garmin:mfa`, `rider:saved`.
 
 ### db (`src/db.js`)
 
@@ -81,7 +88,12 @@ Selected state:
 - `workout` holds `{meta, intervals: [{duration, steps: [{duration, power, slope?,
   cadence?, distance?, messages?}]}]}`. Step `power` is a fraction of FTP (0.75), and
   `models.ftp.toAbsolute(p, ftp)` converts it to watts.
-- `services` is `{strava, intervals, trainingPeaks}` booleans.
+- (redesign) `screen` (loading, riders, setup, start, library, ready, ride, summary,
+  rides, settings, editor), `sheet` ('' | sensors | finish), `rideKind` (workout | free),
+  `notice`, `rider` (from the server, never holds keys), `riders`, `rides`, `ride`,
+  `planned`, `plannedStatus`, `sensors` (`{trainer: {status, name, battery, via}, ...}`),
+  `antDriver`. FTP and weight come from the rider on the server; mode, tolerance,
+  volume, units and sources stay in localStorage (per device).
 
 ### watch.js: targets per step
 
@@ -95,11 +107,15 @@ Selected state:
 
 ### Views
 
-Most tiles subclass `DataView` (`prop` attribute = `db:<key>`). They override
-`getDefaults/config/subs/getValue/shouldUpdate/transform/render`. Markup lives in
-`src/index.html` (home page `#home-page`, `z-stack` switches tile contents on tap).
-New UI should follow that pattern: a custom element plus markup in index.html plus
-styles in flux.css.
+(redesign) Views subclass `UIView` (`views/ui.js`): `props()` lists db keys, `config()`
+runs once, `render()` runs at most once per frame. Views created after start copy their
+props from the db. Buttons are real `<button>`s with
+`data-action="x" data-param="y"` (-> `ui:x`), `data-pressed="prop:value"` for
+aria-pressed, and an `aria-label` or `data-tip`, which `<ui-tooltip>` shows on hover,
+keyboard focus and long-press. Screens are `<section class="screen" data-screen>` in
+`src/index.html`, sheets are `<dialog class="sheet" data-sheet>`. Icons:
+`icon(name)` -> `<use href="#icon-NAME">` from the sprite at the end of index.html.
+New UI: a custom element plus markup in index.html plus styles in app.css.
 
 ### .zwo parsing (`src/workouts/zwo.js`)
 
@@ -110,7 +126,14 @@ interval) and `fromInterval` (internal -> attributes, used by the editor/export)
 keeps `step.powerLow/powerHigh` (FTP fractions) next to `step.power` (the midpoint,
 used for ERG). TextEvents without `timeoffset` are dropped today (known issue).
 
-## Backend contract (api.auuki.com; upstream server is closed-source)
+## Backend contract
+
+`home`/`redesign` use the self-hosted server in `server/` (riders with PIN, per-rider
+Intervals.icu key and Garmin tokens, rides as FIT). Its endpoints are listed in
+`server/README.md`; `src/models/server.js` is the client. The table below is the
+upstream api.auuki.com contract, kept for reference (feat branches still use it).
+
+### api.auuki.com (upstream server is closed-source)
 
 The upstream server code isn't public. Shapes below are inferred from the client.
 All calls are `POST` with `credentials: 'include'`, against `config.API_URI`.
