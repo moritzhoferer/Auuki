@@ -294,7 +294,12 @@ body:not([data-screen="ride"]) .app-bar--title { visibility: hidden; }
 .badge:hover { background: var(--surface-2); }
 .badge[data-status="on"] { color: var(--in); }
 .badge[data-status="connecting"] { color: var(--near); animation: pulse 1.2s infinite; }
-.badge--more { color: var(--muted); }
+/* opens the sensors sheet: same grey as the statuses, a divider sets it apart */
+.badge--more { position: relative; margin-left: 9px; }
+.badge--more::before {
+    content: ''; position: absolute; left: -6px; top: 9px; bottom: 9px;
+    width: 1px; background: var(--border);
+}
 
 @keyframes pulse { 50% { opacity: .4; } }
 
@@ -761,6 +766,11 @@ button.editor--td { cursor: pointer; }
     /* only connected sensors in the bar, the + button lists them all */
     .app-bar--sensors .badge:not([data-status="on"]):not([data-status="connecting"]):not(.badge--more) { display: none; }
     .app-bar--sensors { margin-left: auto; }
+    /* nothing left of it to divide from unless a sensor is connected */
+    .badge--more { margin-left: 0; }
+    .badge--more::before { display: none; }
+    .badge:is([data-status="on"], [data-status="connecting"]) ~ .badge--more { margin-left: 9px; }
+    .badge:is([data-status="on"], [data-status="connecting"]) ~ .badge--more::before { display: block; }
     .choice { min-height: 100px; padding: 12px; }
 }
 

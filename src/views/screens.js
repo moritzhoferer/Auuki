@@ -29,7 +29,7 @@ class ReadyCheck extends UIView {
         if(!isConnected(status, 'hrm')) notes.push(['info', 'No heart rate sensor connected.']);
         this.innerHTML = notes.length ? `<ul class="notes">${notes.map(([kind, text]) =>
             `<li class="note note--${kind}">${icon(kind === 'warn' ? 'alert' : 'info')}<span>${html(text)}</span></li>`).join('')}</ul>
-            <button class="btn btn--ghost" data-action="sheet" data-param="sensors">${icon('plus')}<span>Connect sensors</span></button>` :
+            <button class="btn btn--ghost" data-action="sheet" data-param="sensors">${icon('sensors')}<span>Connect sensors</span></button>` :
             `<p class="note note--ok">${icon('check')}<span>Sensors ready.</span></p>`;
     }
 }

@@ -41,7 +41,7 @@ class SensorBadges extends UIView {
             return `<button class="badge" data-action="sheet" data-param="sensors" data-status="${entry.status ?? 'off'}"
                     aria-label="${html(`${sensor.label}: ${statusText(entry)}`)}">${icon(sensor.icon)}</button>`;
         }).join('') + `<button class="badge badge--more" data-action="sheet" data-param="sensors"
-            aria-label="Sensors: ${connectedCount(status)} of ${sensors.length} connected">${icon('plus')}</button>`;
+            aria-label="Sensors: ${connectedCount(status)} of ${sensors.length} connected">${icon('sensors')}</button>`;
     }
 }
 
