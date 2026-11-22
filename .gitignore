@@ -14,3 +14,10 @@ env.js
 .env.*
 .parcel-cache/
 
+
+# home: self-hosted server
+server/.env
+server/.venv/
+__pycache__/
+.pytest_cache/
+!server/.env.example

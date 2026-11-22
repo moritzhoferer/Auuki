@@ -1,0 +1,9 @@
+node_modules
+dist
+.parcel-cache
+.git
+server/.venv
+server/.env
+**/__pycache__
+**/.pytest_cache
+docs

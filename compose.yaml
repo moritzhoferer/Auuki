@@ -1,0 +1,17 @@
+# docker compose up -d --build   ->  http://localhost:8080
+# localhost is a secure context, so Web Bluetooth works without TLS.
+services:
+  auuki:
+    build: .
+    image: auuki-home
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"   # only this machine; there are no accounts
+    env_file:
+      - path: server/.env
+        required: false
+    volumes:
+      - auuki-data:/data          # Garmin tokens
+
+volumes:
+  auuki-data:
