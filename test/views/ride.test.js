@@ -3,7 +3,7 @@
  */
 
 import { xf } from '../../src/functions.js';
-import '../../src/views/ride-panel.js';
+import '../../src/views/ride.js';
 
 const frame = () => new Promise(resolve => window.requestAnimationFrame(resolve));
 
@@ -66,59 +66,50 @@ describe('<pacing-box>', () => {
     });
 });
 
-describe('<panel-watch>', () => {
+describe('<ride-controls>', () => {
     let events;
     let abort;
 
     afterEach(() => abort.abort());
 
-    beforeEach(() => {
-        document.body.innerHTML = `
-            <panel-watch>
-                <button class="rp-watch--play"><svg><use href="#icon--play-btn"/></svg></button>
-                <button class="rp-watch--skip"><svg><use href="#icon--skip-next-btn"/></svg></button>
-                <div class="rp-finish">
-                    <button class="rp-finish--save"></button>
-                    <button class="rp-finish--resume"></button>
-                    <button class="rp-finish--discard"></button>
-                </div>
-            </panel-watch>`;
+    beforeEach(async () => {
+        document.body.innerHTML = `<ride-controls></ride-controls>`;
         events = [];
         abort = new AbortController();
-        ['ui:watchStart', 'ui:workoutStart', 'ui:watchPause', 'ui:watchResume',
-         'ui:watchLap', 'ui:watchStop', 'ui:activity:save'].forEach(name => {
+        ['ui:ride:toggle', 'ui:ride:finish', 'ui:watchLap', 'ui:watchBack'].forEach(name => {
              xf.sub(name, () => events.push(name), {signal: abort.signal});
-         });
+        });
+        await frame();
     });
 
-    const tap = (selector) => document.querySelector(selector)
-          .dispatchEvent(new Event('pointerup', {bubbles: true}));
+    const $ = (selector) => document.querySelector(selector);
 
-    test('play starts, pauses and resumes', async () => {
-        setDb({watchStatus: 'stopped'}); await frame();
-        tap('.rp-watch--play');
+    test('buttons are labelled and follow the watch', async () => {
+        setDb({watchStatus: 'stopped', rideKind: 'workout'}); await frame();
+        expect($('.ride-controls--play').getAttribute('aria-label')).toBe('Start (space)');
+        expect($('.ride-controls--skip').disabled).toBe(true);
+        expect($('.ride-controls--finish').disabled).toBe(true);
+
         setDb({watchStatus: 'started'}); await frame();
-        expect(document.querySelector('.rp-watch--play use').getAttribute('href')).toBe('#icon--pause-btn');
-        tap('.rp-watch--play');
-        setDb({watchStatus: 'paused'}); await frame();
-        tap('.rp-watch--play');
-        expect(events).toEqual(['ui:watchStart', 'ui:workoutStart', 'ui:watchPause', 'ui:watchResume']);
+        expect($('.ride-controls--play').getAttribute('aria-label')).toBe('Pause (space)');
+        expect($('.ride-controls--play use').getAttribute('href')).toBe('#icon-pause');
+        expect($('.ride-controls--skip').getAttribute('aria-label')).toBe('Skip to the next interval (L)');
+
+        expect($('.ride-controls--back').disabled).toBe(true);   // first interval
+        setDb({intervalIndex: 2}); await frame();
+        expect($('.ride-controls--back').disabled).toBe(false);
+
+        setDb({rideKind: 'free'}); await frame();
+        expect($('.ride-controls--skip').getAttribute('aria-label')).toBe('New lap (L)');
     });
 
-    test('skip while running, stop only while paused', async () => {
-        setDb({watchStatus: 'started'}); await frame();
-        tap('.rp-watch--skip');
-        expect(events).toEqual(['ui:watchLap']);
-        expect(document.querySelector('.rp-finish').classList.contains('active')).toBe(false);
-
-        setDb({watchStatus: 'paused'}); await frame();
-        expect(document.querySelector('.rp-watch--skip use').getAttribute('href')).toBe('#icon--stop-btn');
-        tap('.rp-watch--skip');
-        expect(document.querySelector('.rp-finish').classList.contains('active')).toBe(true);
-        expect(events).toEqual(['ui:watchLap']);
-
-        tap('.rp-finish--save');
-        expect(events).toEqual(['ui:watchLap', 'ui:watchStop', 'ui:activity:save']);
-        expect(document.querySelector('.rp-finish').classList.contains('active')).toBe(false);
+    test('clicks dispatch intents', async () => {
+        setDb({watchStatus: 'started', rideKind: 'workout'}); await frame();
+        $('.ride-controls--play').click();
+        setDb({intervalIndex: 1}); await frame();
+        $('.ride-controls--skip').click();
+        $('.ride-controls--back').click();
+        $('.ride-controls--finish').click();
+        expect(events).toEqual(['ui:ride:toggle', 'ui:watchLap', 'ui:watchBack', 'ui:ride:finish']);
     });
 });

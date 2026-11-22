@@ -61,7 +61,7 @@ describe('labels and targets', () => {
 
     test('next interval target', () => {
         expect(intervalTarget(workout.intervals[1], ftp)).toBe('265–275 W');
-        expect(intervalTarget(workout.intervals[2], ftp)).toBe('295 W');
+        expect(intervalTarget(workout.intervals[2], ftp)).toBe('286–304 W');
         expect(intervalTarget(workout.intervals[3], ftp)).toBe('2.0 %');
         expect(intervalTarget({}, ftp)).toBe('');
     });

@@ -17,6 +17,7 @@ env.js
 
 # home: self-hosted server
 server/.env
+server/data/
 server/.venv/
 __pycache__/
 .pytest_cache/

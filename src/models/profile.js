@@ -1,5 +1,5 @@
 import { exists, empty } from '../functions.js';
-import { toWatts, stepRange } from './range.js';
+import { stepRange } from './range.js';
 
 //
 // Helpers for the ride panel: workout geometry, position and labels.
@@ -83,16 +83,14 @@ function stepLabel(step = {}) {
 }
 
 // Interval, Int -> String
-// target of an interval's first step for the 'up next' card
+// target range of an interval's first step for the 'up next' card,
+// the same range the pacing gauge uses (single targets get the ±3 % band)
 function intervalTarget(interval = {}, ftp = 0) {
     const step = interval?.steps?.[0] ?? {};
 
-    if(exists(step.powerLow) && exists(step.powerHigh)) {
+    if((exists(step.powerLow) && exists(step.powerHigh)) || step.power > 0) {
         const range = stepRange(step, ftp);
         return `${range.low}–${range.high} W`;
-    }
-    if(exists(step.power) && step.power > 0) {
-        return `${toWatts(step.power, ftp)} W`;
     }
     if(exists(step.slope)) {
         return `${step.slope.toFixed(1)} %`;

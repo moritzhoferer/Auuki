@@ -1,4 +1,5 @@
 import { xf, exists, equals } from '../functions.js';
+import { UIView, clock, icon } from './ui.js';
 import {
     toleranceWatts, rangeStatus, gaugePosition, hasRange,
 } from '../models/range.js';
@@ -7,62 +8,16 @@ import {
 } from '../models/profile.js';
 
 //
-// Ride panel: the narrow layout for split view (see docs/design/ride-panel).
-// Shown by CSS only, below 700 px width.
+// The ride screen. One layout for every width: CSS arranges the same parts in one
+// column (split view) or two (wide). Free rides hide the workout parts.
 //
 
-// Int -> String, 'm:ss' or 'h:mm:ss'
-function clock(seconds = 0) {
-    const value = Math.max(0, Math.round(seconds));
-    const h = Math.floor(value / 3600);
-    const m = Math.floor(value % 3600 / 60);
-    const s = value % 60;
-    const pad = (x) => String(x).padStart(2, '0');
-    if(h > 0) return `${h}:${pad(m)}:${pad(s)}`;
-    return `${pad(m)}:${pad(s)}`;
-}
+xf.sub('db:rideKind', (kind) => { document.body.dataset.rideKind = kind; });
+// started | paused | stopped, for parts of the page that change during a ride
+xf.sub('db:watchStatus', (status) => { document.body.dataset.watch = status; });
 
-//
-// PanelView
-//
-// Keeps a copy of a few db props and renders once per frame when any of them changes.
-// Subclasses list the props in props() and implement render().
-//
-class PanelView extends HTMLElement {
-    constructor() {
-        super();
-        this.data = {};
-        this.pending = false;
-    }
-    props() { return []; }
-    connectedCallback() {
-        const self = this;
-        this.abortController = new AbortController();
-        this.signal = { signal: self.abortController.signal };
-
-        this.config();
-
-        for(const prop of this.props()) {
-            xf.sub(`db:${prop}`, (value) => {
-                self.data[prop] = value;
-                self.update();
-            }, this.signal);
-        }
-        this.update();
-    }
-    disconnectedCallback() {
-        this.abortController.abort();
-    }
-    config() {}
-    update() {
-        if(this.pending) return;
-        this.pending = true;
-        window.requestAnimationFrame(() => {
-            this.pending = false;
-            this.render();
-        });
-    }
-    render() {}
+// adds the 'last 5 seconds of the interval' check to UIView
+class RideView extends UIView {
     isFinalSeconds() {
         const { lapTime, watchStatus } = this.data;
         return equals(watchStatus, 'started') && lapTime > 0 && lapTime <= 5;
@@ -70,47 +25,12 @@ class PanelView extends HTMLElement {
 }
 
 
-//
-// <device-status for="ble:controllable" alt="ant:controllable">
-// lit while the BLE or the ANT+ variant of a device is connected
-//
-class DeviceStatus extends HTMLElement {
-    connectedCallback() {
-        const self = this;
-        this.abortController = new AbortController();
-        this.signal = { signal: self.abortController.signal };
-        this.connected = new Set();
-
-        const sources = [this.getAttribute('for'), this.getAttribute('alt')].filter(exists);
-
-        for(const source of sources) {
-            xf.sub(`${source}:connected`, () => {
-                self.connected.add(source);
-                self.render();
-            }, this.signal);
-            xf.sub(`${source}:disconnected`, () => {
-                self.connected.delete(source);
-                self.render();
-            }, this.signal);
-        }
-        this.render();
-    }
-    disconnectedCallback() {
-        this.abortController.abort();
-    }
-    render() {
-        this.classList.toggle('on', this.connected.size > 0);
-    }
-}
-
-customElements.define('device-status', DeviceStatus);
-
 
 //
 // <interval-block>
 // label (from the workout file), elapsed / duration, countdown and progress
 //
-class IntervalBlock extends PanelView {
+class IntervalBlock extends RideView {
     props() {
         return ['workout', 'intervalIndex', 'stepIndex', 'lapTime', 'watchStatus'];
     }
@@ -157,7 +77,7 @@ function statusKey(status) {
 // <pacing-box>
 // status line, big 3 s power and the range gauge
 //
-class PacingBox extends PanelView {
+class PacingBox extends RideView {
     props() {
         return ['power3s', 'powerLap', 'powerTargetRange', 'powerTolerance', 'ftp', 'watchStatus'];
     }
@@ -209,7 +129,7 @@ customElements.define('pacing-box', PacingBox);
 // <lap-power-status>
 // interval average, coloured by its status
 //
-class LapPowerStatus extends PanelView {
+class LapPowerStatus extends RideView {
     props() {
         return ['powerLap', 'powerTargetRange', 'powerTolerance', 'ftp'];
     }
@@ -230,7 +150,7 @@ customElements.define('lap-power-status', LapPowerStatus);
 //
 // <time-in-range>
 //
-class TimeInRangeValue extends PanelView {
+class TimeInRangeValue extends RideView {
     props() {
         return ['timeInRange', 'powerTargetRange'];
     }
@@ -247,7 +167,7 @@ customElements.define('time-in-range', TimeInRangeValue);
 // <next-interval>
 // only the next interval: label (if any), duration and target
 //
-class NextInterval extends PanelView {
+class NextInterval extends RideView {
     props() {
         return ['workout', 'intervalIndex', 'lapTime', 'watchStatus', 'ftp'];
     }
@@ -284,7 +204,7 @@ const svgns = 'http://www.w3.org/2000/svg';
 const profileWidth  = 1000;
 const profileHeight = 100;
 
-class RideProfile extends PanelView {
+class RideProfile extends RideView {
     props() {
         return ['workout', 'ftp', 'intervalIndex', 'lapTime', 'watchStatus', 'power1s'];
     }
@@ -389,26 +309,30 @@ customElements.define('ride-profile', RideProfile);
 
 
 //
-// <panel-stepper>
+// <target-stepper>
 // − value + for the target of the active mode, the unit follows the mode
 //
 const stepperModes = {
-    erg:        {prop: 'powerTarget',      effect: 'power-target',      unit: 'W', format: (x) => Math.round(x)},
-    resistance: {prop: 'resistanceTarget', effect: 'resistance-target', unit: '',  format: (x) => Math.round(x)},
-    sim:        {prop: 'slopeTarget',      effect: 'slope-target',      unit: '%', format: (x) => Number(x).toFixed(1)},
+    erg:        {prop: 'powerTarget',      effect: 'power-target',      unit: 'W', label: 'Target', name: 'power target',      format: (x) => Math.round(x)},
+    resistance: {prop: 'resistanceTarget', effect: 'resistance-target', unit: '',  label: 'Resistance', name: 'resistance',        format: (x) => Math.round(x)},
+    sim:        {prop: 'slopeTarget',      effect: 'slope-target',      unit: '%', label: 'Slope', name: 'slope',             format: (x) => Number(x).toFixed(1)},
 };
 
-class PanelStepper extends PanelView {
+class TargetStepper extends RideView {
     props() {
         return ['mode', 'powerTarget', 'resistanceTarget', 'slopeTarget'];
     }
     config() {
-        this.$value = this.querySelector('.rp-stepper--value');
-        this.$unit  = this.querySelector('.rp-stepper--unit');
-        this.querySelector('.rp-stepper--dec')
-            .addEventListener('pointerup', () => this.step('dec'), this.signal);
-        this.querySelector('.rp-stepper--inc')
-            .addEventListener('pointerup', () => this.step('inc'), this.signal);
+        this.innerHTML = `<button class="btn btn--icon stepper--dec">${icon('minus')}</button>
+            <output class="stepper--value" aria-live="off"><span class="stepper--label"></span><span class="stepper--reading"><span class="stepper--number">0</span><span class="stepper--unit"></span></span></output>
+            <button class="btn btn--icon stepper--inc">${icon('plus')}</button>`;
+        this.$number = this.querySelector('.stepper--number');
+        this.$unit   = this.querySelector('.stepper--unit');
+        this.$label  = this.querySelector('.stepper--label');
+        this.$dec    = this.querySelector('.stepper--dec');
+        this.$inc    = this.querySelector('.stepper--inc');
+        this.$dec.addEventListener('click', () => this.step('dec'), this.signal);
+        this.$inc.addEventListener('click', () => this.step('inc'), this.signal);
     }
     current() {
         return stepperModes[this.data.mode] ?? stepperModes.erg;
@@ -418,92 +342,68 @@ class PanelStepper extends PanelView {
     }
     render() {
         const mode = this.current();
-        this.$value.textContent = mode.format(this.data[mode.prop] ?? 0);
-        this.$unit.textContent  = mode.unit;
+        this.$number.textContent = mode.format(this.data[mode.prop] ?? 0);
+        this.$unit.textContent   = mode.unit;
+        this.$label.textContent  = mode.label;
+        this.$dec.setAttribute('aria-label', `Lower the ${mode.name} (arrow down)`);
+        this.$inc.setAttribute('aria-label', `Raise the ${mode.name} (arrow up)`);
     }
 }
 
-customElements.define('panel-stepper', PanelStepper);
+customElements.define('target-stepper', TargetStepper);
 
 
 //
-// <panel-watch>
-// play/pause and skip/stop in two slots, stop only while paused,
-// stop opens the finish sheet: save, resume, discard
+// <ride-controls>
+// finish (opens the finish sheet), previous interval, play/pause, skip (lap in free ride)
 //
-class PanelWatch extends PanelView {
+class RideControls extends RideView {
     props() {
-        return ['watchStatus'];
+        return ['watchStatus', 'rideKind', 'intervalIndex'];
     }
     config() {
-        this.$play    = this.querySelector('.rp-watch--play');
-        this.$skip    = this.querySelector('.rp-watch--skip');
-        this.$sheet   = this.querySelector('.rp-finish');
-
-        const on = ($el, handler) => $el.addEventListener('pointerup', handler.bind(this), this.signal);
-
-        on(this.$play, this.onPlay);
-        on(this.$skip, this.onSkip);
-        on(this.querySelector('.rp-finish--save'), this.onSave);
-        on(this.querySelector('.rp-finish--resume'), this.onResume);
-        on(this.querySelector('.rp-finish--discard'), this.onDiscard);
-    }
-    status() {
-        return this.data.watchStatus ?? 'stopped';
-    }
-    onPlay() {
-        const status = this.status();
-        if(equals(status, 'started')) {
-            xf.dispatch('ui:watchPause');
-        } else if(equals(status, 'paused')) {
-            xf.dispatch('ui:watchResume');
-        } else {
-            xf.dispatch('ui:watchStart');
-            xf.dispatch('ui:workoutStart');
-        }
-    }
-    onSkip() {
-        const status = this.status();
-        if(equals(status, 'started')) xf.dispatch('ui:watchLap');
-        if(equals(status, 'paused'))  this.openSheet();
-    }
-    onSave() {
-        this.closeSheet();
-        xf.dispatch('ui:watchStop');
-        xf.dispatch('ui:activity:save');
-    }
-    onResume() {
-        this.closeSheet();
-        xf.dispatch('ui:watchResume');
-    }
-    onDiscard() {
-        // ui:watchStop asks 'Confirm Stop?' itself
-        this.closeSheet();
-        xf.dispatch('ui:watchStop');
-    }
-    openSheet() {
-        this.$sheet.classList.add('active');
-    }
-    closeSheet() {
-        this.$sheet.classList.remove('active');
+        this.innerHTML = `<button class="btn btn--icon btn--ghost ride-controls--finish" data-action="ride:finish"
+                aria-label="Finish the ride">${icon('stop')}</button>
+            <button class="btn btn--icon btn--ghost ride-controls--back workout-only" data-action="watchBack"
+                aria-label="Back to the previous interval (B)">${icon('previous')}</button>
+            <button class="btn btn--icon btn--play ride-controls--play" data-action="ride:toggle"></button>
+            <button class="btn btn--icon btn--ghost ride-controls--skip" data-action="watchLap"></button>`;
+        this.$play   = this.querySelector('.ride-controls--play');
+        this.$skip   = this.querySelector('.ride-controls--skip');
+        this.$finish = this.querySelector('.ride-controls--finish');
+        this.$back   = this.querySelector('.ride-controls--back');
     }
     render() {
-        const status = this.status();
+        const status = this.data.watchStatus ?? 'stopped';
+        const started = equals(status, 'started');
+        const free = equals(this.data.rideKind, 'free');
         this.dataset.status = status;
-        this.$play.querySelector('use')
-            .setAttribute('href', equals(status, 'started') ? '#icon--pause-btn' : '#icon--play-btn');
-        this.$skip.querySelector('use')
-            .setAttribute('href', equals(status, 'paused') ? '#icon--stop-btn' : '#icon--skip-next-btn');
-        this.$skip.setAttribute('aria-label', equals(status, 'paused') ? 'Stop' : 'Skip interval');
-        this.$play.setAttribute('aria-label', equals(status, 'started') ? 'Pause' : 'Start');
-        if(!equals(status, 'paused')) this.closeSheet();
+        this.$play.innerHTML = icon(started ? 'pause' : 'play');
+        this.$play.setAttribute('aria-label', started ? 'Pause (space)' : (equals(status, 'paused') ? 'Resume (space)' : 'Start (space)'));
+        this.$skip.innerHTML = icon(free ? 'lap' : 'skip');
+        this.$skip.setAttribute('aria-label', free ? 'New lap (L)' : 'Skip to the next interval (L)');
+        this.$skip.disabled = !started;
+        this.$back.disabled = !started || (this.data.intervalIndex ?? 0) === 0;
+        this.$finish.disabled = equals(status, 'stopped');
     }
 }
 
-customElements.define('panel-watch', PanelWatch);
+customElements.define('ride-controls', RideControls);
+
+
+//
+// <elapsed-time>  total ride time
+//
+class ElapsedTime extends RideView {
+    props() { return ['elapsed']; }
+    render() {
+        this.textContent = clock(this.data.elapsed ?? 0);
+    }
+}
+
+customElements.define('elapsed-time', ElapsedTime);
 
 export {
-    clock,
     statusText,
     statusKey,
 };
