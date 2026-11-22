@@ -1233,11 +1233,6 @@ auto-start-counter {
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
 }
-.mode-lock--toggle--icon {
-    position: absolute;
-    top: 0;
-    cursor: pointer;
-}
 /* END Target Controls */
 /* END Home Page */
 
@@ -3723,10 +3718,6 @@ and (min-width: 1024px) {
     .btn {
         /* background-color: var(--dark); */
     }
-    .mode-lock--toggle--icon {
-        left: -2em;
-    }
-
     .fixed-bottom {
         --controls-height: 100vh;
         --menu-height: 100vh;
