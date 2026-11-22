@@ -12,6 +12,7 @@ npm start            # parcel dev server, http://localhost:1234 (secure context 
 npm run build        # -> dist/
 npx jest test/workouts test/models   # fast, relevant suites
 npm test             # full suite
+cd server && uv sync && uv run pytest   # home only: Python env via uv (pyproject + uv.lock), never pip
 ```
 
 Baseline on upstream/develop @ 3442b6a (2026-11-22): 461 pass, 50 fail, 11 skipped

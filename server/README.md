@@ -20,7 +20,7 @@ Garmin (optional). Do the one-time login, which can ask for an MFA code and save
 tokens:
 
 ```bash
-cd server && .venv/bin/python -m app.garmin_login          # local
+cd server && uv run python -m app.garmin_login            # local
 docker compose run --rm -it auuki python -m app.garmin_login  # container
 ```
 
@@ -37,15 +37,20 @@ docker compose up -d --build
 Local development:
 
 ```bash
-python3.12 -m venv server/.venv && server/.venv/bin/pip install -r server/requirements-dev.txt
-cd server && .venv/bin/uvicorn app.main:create_app --factory --port 8080   # API (+ ../dist)
+cd server && uv sync                                                   # .venv from uv.lock
+uv run uvicorn app.main:create_app --factory --port 8080              # API (+ ../dist)
 npm start                                                             # PWA on :1234, /api proxied to :8080
 ```
+
+## Dependencies
+
+Managed with [uv](https://docs.astral.sh/uv/): `pyproject.toml` + `uv.lock`.
+Add or upgrade with `uv add <pkg>==<ver>` / `uv lock --upgrade-package <pkg>`, never pip.
 
 ## Test
 
 ```bash
-cd server && .venv/bin/python -m pytest
+cd server && uv run pytest
 ```
 
 Intervals.icu and Garmin are mocked in the tests.

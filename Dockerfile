@@ -16,8 +16,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     STATIC_DIR=/app/dist \
     GARMIN_TOKENSTORE=/data/garmin
 WORKDIR /app/server
-COPY server/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=ghcr.io/astral-sh/uv:0.7.16 /uv /bin/uv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never \
+    PATH=/app/server/.venv/bin:$PATH
+COPY server/pyproject.toml server/uv.lock server/.python-version ./
+RUN uv sync --frozen --no-dev --no-cache
 COPY server/app ./app
 COPY --from=web /app/dist /app/dist
 RUN useradd --create-home auuki && mkdir -p /data && chown auuki /data
