@@ -268,18 +268,10 @@ body[data-screen="riders"] .app-bar,
 body[data-screen="setup"] .app-bar { display: none; }
 
 .app-bar--home { padding: 0 8px; gap: 8px; border-color: transparent; }
-.logo {
-    display: inline-grid; place-items: center;
-    width: 28px; height: 28px;
-    border-radius: 8px;
-    background: var(--accent); color: var(--on-accent);
-    font-weight: 700;
-}
-.app-bar--name { font-weight: 700; }
+.logo { display: block; width: 28px; height: 28px; }
 .app-bar--title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .app-bar--sensors { display: flex; gap: 2px; }
 
-body[data-screen="ride"] .app-bar--name { display: none; }
 body:not([data-screen="ride"]) .app-bar--title { visibility: hidden; }
 
 .badge {
@@ -775,7 +767,6 @@ button.editor--td { cursor: pointer; }
 }
 
 @media (max-width: 420px) {
-    .app-bar--name { display: none; }
     .account--on { grid-template-columns: auto minmax(0, 1fr); }
     .account--on > .btn { grid-column: 1 / -1; justify-self: start; }
     .sensor-row { gap: 10px; }
