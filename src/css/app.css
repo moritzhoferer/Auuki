@@ -179,10 +179,10 @@ h1:focus { outline: none; }
 .btn--ghost:hover { background: var(--surface-2); }
 .btn--danger, .btn--danger-ghost { color: var(--out); border-color: var(--out); }
 .btn--danger-ghost { background: transparent; }
-.btn--small { min-height: 36px; padding: 0 12px; font-size: .9rem; }
+/* every button is 44 px high (touch target); small only means tighter and smaller text */
+.btn--small { padding: 0 12px; font-size: .9rem; }
 .btn--large { min-height: 56px; font-size: 1.1rem; width: 100%; }
 .btn--icon { width: 44px; padding: 0; }
-.btn--icon.btn--small { width: 36px; }
 .btn--back { padding-left: 8px; }
 /* same shape as the other controls, the accent colour marks it as the main one */
 .btn--play { width: 56px; background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
@@ -199,7 +199,7 @@ h1:focus { outline: none; }
 .segmented .btn { flex: 1; border-radius: 0; margin-left: -1px; }
 .segmented .btn:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; }
 .segmented .btn:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
-.segmented--small .btn { min-height: 40px; padding: 0 10px; font-size: .85rem; }
+.segmented--small .btn { padding: 0 10px; font-size: .85rem; }
 
 
 /* ---------- forms ---------- */
@@ -276,7 +276,7 @@ body:not([data-screen="ride"]) .app-bar--title { visibility: hidden; }
 
 .badge {
     display: inline-grid; place-items: center;
-    width: 36px; height: 36px;
+    width: 44px; height: 44px;
     padding: 0;
     border: none; border-radius: 8px;
     background: transparent;
@@ -289,7 +289,7 @@ body:not([data-screen="ride"]) .app-bar--title { visibility: hidden; }
 /* opens the sensors sheet: same grey as the statuses, a divider sets it apart */
 .badge--more { position: relative; margin-left: 9px; }
 .badge--more::before {
-    content: ''; position: absolute; left: -6px; top: 9px; bottom: 9px;
+    content: ''; position: absolute; left: -6px; top: 12px; bottom: 12px;
     width: 1px; background: var(--border);
 }
 
@@ -442,7 +442,7 @@ sensor-list { display: flex; flex-direction: column; gap: var(--gap); }
 .sensor-row--actions { display: flex; gap: 2px; }
 /* tonal buttons: clearly buttons, quieter than seven outlined boxes */
 .sensor-row--actions .btn, .sensor-ant .btn {
-    min-height: 36px; padding: 0 14px;
+    padding: 0 14px;
     border-color: transparent;
     background: color-mix(in srgb, var(--accent) 18%, transparent);
     color: var(--accent-2); font-weight: 600;
@@ -491,14 +491,11 @@ ride-summary { display: flex; flex-direction: column; gap: var(--gap); }
 
 /* settings, accounts */
 /* icon and name side by side, everything else full width below */
-.account { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--gap); }
-.account > :not(.icon):not(.account--text) { grid-column: 1 / -1; }
-.account--on { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
-.account--on > .btn { grid-column: auto; }
-.account--text { display: flex; flex-direction: column; gap: 2px; }
-.account--name { font-weight: 700; }
-.account > .icon { width: 28px; height: 28px; color: var(--accent-2); }
-.account--on > .icon { color: var(--in); }
+/* accounts use the sensor rows; the form opens below its row */
+.account-list > * { display: block; }
+.account-list > * + * { border-top: 1px solid var(--border); }
+.account-list .sensor-row { border-bottom: none; }
+.account-form { display: flex; flex-direction: column; gap: var(--gap); padding: 4px 0 14px 38px; }
 .offer {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     padding: 10px 12px;
@@ -752,7 +749,7 @@ button.editor--td { cursor: pointer; }
     .card { padding: 14px; }
 
     /* Back becomes an icon button, its text stays for screen readers */
-    .btn--back { width: 40px; min-height: 40px; padding: 0; }
+    .btn--back { width: 44px; padding: 0; }
     .btn--back span {
         position: absolute; width: 1px; height: 1px;
         overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
@@ -763,7 +760,6 @@ button.editor--td { cursor: pointer; }
     .app-bar { gap: 4px; padding: 0 4px; }
     .app-bar--home { padding: 0 6px; }
     .rider-chip { padding: 0 4px; }
-    .badge { width: 32px; height: 32px; }
 
     /* one row each: mode, target, controls */
     .ride-bar {
@@ -797,8 +793,6 @@ button.editor--td { cursor: pointer; }
 }
 
 @media (max-width: 420px) {
-    .account--on { grid-template-columns: auto minmax(0, 1fr); }
-    .account--on > .btn { grid-column: 1 / -1; justify-self: start; }
     .sensor-row { gap: 10px; }
     .ride-bar .segmented--small .btn { padding: 0 8px; }
     .stepper--value { min-width: 60px; }

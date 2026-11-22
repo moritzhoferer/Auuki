@@ -96,17 +96,50 @@ customElements.define('rider-picker', RiderPicker);
 
 
 //
-// <intervals-account>
+// <intervals-account> <garmin-account>
+// one row like a sensor: icon, name, status, button on the right.
+// Connect opens the form below the row.
 //
+function accountRow({iconName, label, status, on, action}) {
+    return `<div class="sensor-row" data-status="${on ? 'on' : 'off'}">
+        ${icon(iconName, 'sensor-row--icon')}
+        <span class="sensor-row--text"><span class="sensor-row--label">${html(label)}</span>
+            <span class="sensor-row--status">${html(status)}</span></span>
+        <span class="sensor-row--actions">${action}</span>
+    </div>`;
+}
+
+function connectButton(open, label) {
+    return open ? '' : `<button class="btn" type="button" data-account="open" aria-label="Connect ${html(label)}">Connect</button>`;
+}
+
+const formButtons = (submit) => `<div class="row">
+    <button class="btn btn--primary" type="submit">${submit}</button>
+    <button class="btn btn--ghost" type="button" data-account="cancel">Cancel</button>
+</div>`;
+
+// open / close the form of an account view
+function accountToggle(view) {
+    view.open = false;
+    view.addEventListener('click', (e) => {
+        const toggle = e.target.closest('[data-account]')?.dataset.account;
+        if(!toggle) return;
+        view.open = equals(toggle, 'open');
+        view.render();
+        if(view.open) view.querySelector('form input')?.focus();
+    }, view.signal);
+}
+
 class IntervalsAccount extends UIView {
     props() { return ['rider']; }
     config() {
+        accountToggle(this);
         this.on('account:error', ({service, error}) => {
             if(!equals(service, 'intervals')) return;
             const $form = this.querySelector('form');
             if($form) { setBusy($form, false); showError($form, error); }
         });
-        this.on('intervals:connected', () => this.render());
+        this.on('intervals:connected', () => { this.open = false; this.render(); });
         this.addEventListener('submit', (e) => {
             e.preventDefault();
             const { apiKey, athleteId } = formData(e.target);
@@ -116,38 +149,32 @@ class IntervalsAccount extends UIView {
         }, this.signal);
     }
     render() {
+        const label = 'Intervals.icu';
         const intervals = this.data.rider?.intervals ?? {};
         if(intervals.connected) {
-            this.innerHTML = `<div class="account account--on">
-                ${icon('intervals', 'account--icon')}
-                <span class="account--text"><span class="account--name">Intervals.icu</span>
-                    <span class="muted">Connected as athlete ${html(intervals.athleteId)}. Planned workouts show on the start screen.</span></span>
-                <button class="btn btn--ghost" data-action="intervals:disconnect" aria-label="Disconnect Intervals.icu">Disconnect</button>
-            </div>`;
+            this.innerHTML = accountRow({iconName: 'intervals', label, on: true,
+                status: `Athlete ${intervals.athleteId}`,
+                action: `<button class="btn btn--ghost" data-action="intervals:disconnect" aria-label="Disconnect Intervals.icu">Disconnect</button>`});
             return;
         }
-        this.innerHTML = `<form class="account">
-            ${icon('intervals', 'account--icon')}
-            <span class="account--text"><span class="account--name">Intervals.icu</span>
-                <span class="muted">Planned workouts, FTP and weight. Find the API key and athlete ID in Intervals.icu under Settings, Developer settings.</span></span>
-            <label class="field"><span>API key</span><input name="apiKey" type="password" autocomplete="off" required minlength="8"></label>
-            <label class="field"><span>Athlete ID</span><input name="athleteId" placeholder="i12345" pattern="0|i?\\d{1,12}"></label>
-            <p class="form-error" role="alert" hidden></p>
-            <button class="btn btn--primary" type="submit">Connect Intervals.icu</button>
-        </form>`;
+        this.innerHTML = accountRow({iconName: 'intervals', label, status: 'Not connected', action: connectButton(this.open, label)}) +
+            (this.open ? `<form class="account-form">
+                <p class="muted">Planned workouts, FTP and weight. Find the API key and athlete ID in Intervals.icu under Settings, Developer settings.</p>
+                <label class="field"><span>API key</span><input name="apiKey" type="password" autocomplete="off" required minlength="8"></label>
+                <label class="field"><span>Athlete ID</span><input name="athleteId" placeholder="i12345" pattern="0|i?\\d{1,12}"></label>
+                <p class="form-error" role="alert" hidden></p>
+                ${formButtons('Connect')}
+            </form>` : '');
     }
 }
 
 customElements.define('intervals-account', IntervalsAccount);
 
-
-//
-// <garmin-account>
-//
 class GarminAccount extends UIView {
     props() { return ['rider']; }
     config() {
         this.step = 'login';
+        accountToggle(this);
         this.on('account:error', ({service, error}) => {
             if(!equals(service, 'garmin')) return;
             const $form = this.querySelector('form');
@@ -155,10 +182,11 @@ class GarminAccount extends UIView {
         });
         this.on('garmin:mfa', () => {
             this.step = 'code';
+            this.open = true;
             this.render();
             this.querySelector('input[name="code"]')?.focus();
         });
-        this.on('garmin:connected', () => { this.step = 'login'; });
+        this.on('garmin:connected', () => { this.step = 'login'; this.open = false; });
         this.addEventListener('submit', (e) => {
             e.preventDefault();
             const values = formData(e.target);
@@ -172,35 +200,29 @@ class GarminAccount extends UIView {
         }, this.signal);
     }
     render() {
+        const label = 'Garmin Connect';
         if(this.data.rider?.garmin?.connected) {
-            this.innerHTML = `<div class="account account--on">
-                ${icon('garmin', 'account--icon')}
-                <span class="account--text"><span class="account--name">Garmin Connect</span>
-                    <span class="muted">Connected. Rides can be uploaded after you finish.</span></span>
-                <button class="btn btn--ghost" data-action="garmin:disconnect" aria-label="Disconnect Garmin Connect">Disconnect</button>
-            </div>`;
+            this.innerHTML = accountRow({iconName: 'garmin', label, on: true, status: 'Connected',
+                action: `<button class="btn btn--ghost" data-action="garmin:disconnect" aria-label="Disconnect Garmin Connect">Disconnect</button>`});
             return;
         }
-        if(equals(this.step, 'code')) {
-            this.innerHTML = `<form class="account">
-                ${icon('garmin', 'account--icon')}
-                <span class="account--text"><span class="account--name">Garmin Connect</span>
-                    <span class="muted">Garmin sent you a code by email or app.</span></span>
+        if(!this.open) this.step = 'login';
+        const form = equals(this.step, 'code') ?
+            `<form class="account-form">
+                <p class="muted">Garmin sent you a code by email or app.</p>
                 <label class="field"><span>Code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" required pattern="\\d{4,8}"></label>
                 <p class="form-error" role="alert" hidden></p>
-                <button class="btn btn--primary" type="submit">Confirm code</button>
+                ${formButtons('Confirm code')}
+            </form>` :
+            `<form class="account-form">
+                <p class="muted">Upload rides, FTP and weight. Your password is used once to log in and isn't stored.</p>
+                <label class="field"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
+                <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
+                <p class="form-error" role="alert" hidden></p>
+                ${formButtons('Connect')}
             </form>`;
-            return;
-        }
-        this.innerHTML = `<form class="account">
-            ${icon('garmin', 'account--icon')}
-            <span class="account--text"><span class="account--name">Garmin Connect</span>
-                <span class="muted">Upload rides to Garmin. Your password is used once to log in and isn't stored.</span></span>
-            <label class="field"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
-            <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
-            <p class="form-error" role="alert" hidden></p>
-            <button class="btn btn--primary" type="submit">Connect Garmin</button>
-        </form>`;
+        this.innerHTML = accountRow({iconName: 'garmin', label, status: 'Not connected', action: connectButton(this.open, label)}) +
+            (this.open ? form : '');
     }
 }
 
@@ -376,7 +398,7 @@ class RiderSetup extends UIView {
                         <button class="btn btn--ghost" type="button" data-action="screen" data-param="riders">Cancel</button>
                     </div>
                 </form>`,
-            accounts: `<div class="stack"><intervals-account class="card"></intervals-account><garmin-account class="card"></garmin-account>
+            accounts: `<div class="stack"><div class="card account-list"><intervals-account></intervals-account><garmin-account></garmin-account></div>
                 <body-source class="card"></body-source></div>`,
             body: `<body-settings class="card"></body-settings>`,
             sensors: `<sensor-list class="card"></sensor-list><ant-device-request class="card"></ant-device-request>`,
