@@ -29,11 +29,13 @@ function weekday(dateString) {
     return new Date(dateString).toLocaleDateString(undefined, {weekday: 'short', day: 'numeric'});
 }
 
+// 'Custom' is the .zwo parser's placeholder for a missing category, not worth showing
 function workoutMeta(workout) {
     const parts = [];
     const total = workoutDuration(workout) || workout?.meta?.duration;
     if(total) parts.push(duration(total));
-    if(workout?.meta?.category) parts.push(workout.meta.category);
+    const category = workout?.meta?.category;
+    if(category && category !== 'Custom') parts.push(category);
     return parts.join(' · ');
 }
 
@@ -41,9 +43,9 @@ function workoutCard(workout, ftp, action, {when = '', primary = false} = {}) {
     const name = workout?.meta?.name || 'Workout';
     return `<article class="card workout-card ${primary ? 'card--accent' : ''}">
         <header class="workout-card--head">
-            ${when ? `<span class="chip">${html(when)}</span>` : ''}
             <h3 class="workout-card--name">${html(name)}</h3>
-            <span class="workout-card--meta">${html(workoutMeta(workout))}</span>
+            <span class="workout-card--meta">${when ?
+                `<span class="workout-card--when ${when.startsWith('Today') ? 'is-today' : ''}">${html(when)}</span> · ` : ''}${html(workoutMeta(workout))}</span>
         </header>
         ${profileSvg(workout, ftp)}
         <button class="btn ${primary ? 'btn--primary' : ''}" data-action="${action}" data-param="${html(workout.id)}"
@@ -62,7 +64,7 @@ class TodayCard extends UIView {
         const today = planned.find(w => isToday(w.meta?.startDateLocal));
 
         if(today) {
-            this.innerHTML = workoutCard(today, ftp, 'ride:planned', {when: 'Today · Intervals.icu', primary: true});
+            this.innerHTML = workoutCard(today, ftp, 'ride:planned', {when: 'Today', primary: true});
             return;
         }
 
@@ -79,8 +81,7 @@ class TodayCard extends UIView {
         }
 
         this.innerHTML = `<article class="card card--accent today-empty">
-            <span class="chip">Today</span>
-            <p>${html(text)}</p>
+            <p><span class="workout-card--when is-today">Today</span> · ${html(text)}</p>
             ${extra ? `<div class="row">${extra}</div>` : ''}
         </article>`;
     }

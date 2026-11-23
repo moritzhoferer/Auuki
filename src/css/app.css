@@ -141,14 +141,6 @@ h1:focus { outline: none; }
 }
 .panel { display: flex; flex-direction: column; gap: var(--gap); }
 
-.chip {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--surface-2);
-    color: var(--muted);
-    font-size: 0.8rem;
-}
 
 
 /* ---------- buttons ---------- */
@@ -401,10 +393,17 @@ rider-setup .screen--head { flex-direction: column; align-items: flex-start; gap
 .today-empty { display: flex; flex-direction: column; gap: var(--gap); align-items: flex-start; }
 
 /* workout cards */
-.workout-card { display: flex; flex-direction: column; gap: 10px; }
-.workout-card--head { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+/* name and meta left, Ride on the right, the shape below at the bottom of the card */
+.workout-card {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr;
+    align-items: start; gap: 12px 16px;
+}
+.workout-card--head { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .workout-card--meta { color: var(--muted); font-size: .9rem; }
-.workout-card .btn { align-self: flex-start; }
+.workout-card--when { color: var(--text); font-weight: 600; }
+.workout-card--when.is-today { color: var(--accent-2); }
+.workout-card .btn { grid-column: 2; grid-row: 1; }
+.workout-card .profile { grid-column: 1 / -1; grid-row: 2; align-self: end; }
 
 .profile { width: 100%; height: 48px; display: block; }
 .profile--large { height: 90px; }
@@ -668,7 +667,7 @@ ride-profile svg { width: 100%; height: 90px; display: block; }
     gap: 10px 16px;
     margin: 0 calc(var(--pad) * -1);
     padding: 10px var(--pad) calc(10px + env(safe-area-inset-bottom));
-    background: rgba(22, 24, 28, .96);
+    background: var(--bg); /* opaque: the ride scrolls underneath */
     border-top: 1px solid var(--border);
 }
 .ride-bar .segmented { grid-area: mode; justify-self: start; }
@@ -782,9 +781,7 @@ button.editor--td { cursor: pointer; }
     ride-profile svg { height: 70px; }
 
     /* workout cards: name and Ride side by side, shape below */
-    .workout-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; }
-    .workout-card .profile { grid-column: 1 / -1; grid-row: 2; height: 36px; }
-    .workout-card .btn { grid-column: 2; grid-row: 1; align-self: center; }
+    .workout-card .profile { height: 36px; }
 
     /* only connected sensors in the bar, the + button lists them all */
     .app-bar--sensors .badge:not([data-status="on"]):not([data-status="connecting"]):not(.badge--more) { display: none; }

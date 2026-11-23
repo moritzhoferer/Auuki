@@ -76,7 +76,7 @@ All JSON. Errors are `{"error": {"message": CODE}}`.
 | `POST /api/riders` `{name, pin?}` | Create a rider and log in |
 | `POST /api/session` `{riderId, pin?}` | Log in. 403 `WRONG_PIN`, 429 `TOO_MANY_TRIES` (5 tries, then 60 s) |
 | `DELETE /api/session` | Log out |
-| `GET / PATCH / DELETE /api/me` | Current rider `{id, name, hasPin, ftp, weight, bodySource, intervals:{connected, athleteId}, garmin:{connected}}`. PATCH: `name, pin, removePin, ftp, weight` |
+| `GET / PATCH / DELETE /api/me` | Current rider `{id, name, hasPin, ftp, weight, bodySource, bodySyncedAt, intervals:{connected, athleteId}, garmin:{connected}}`. PATCH: `name, pin, removePin, ftp, weight` |
 | `PUT /api/me/intervals` `{apiKey, athleteId}` | Check the key and save it. Returns `{me, athlete:{ftp, weight}}` |
 | `GET /api/me/intervals/events?oldest&newest` | Planned workouts with `workout_file_base64` |
 | `DELETE /api/me/intervals` | Forget the key |

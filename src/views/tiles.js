@@ -7,18 +7,19 @@ import { fieldByKey, availableFields } from '../models/fields.js';
 //
 
 class MetricTile extends UIView {
-    props() {
-        this.field = fieldByKey(this.getAttribute('field'));
-        if(!this.field) return [];
-        return [this.field.key, 'measurement', 'sources', ...(this.field.deps ?? [])];
-    }
+    // config() runs before props(), so the field is looked up here
     config() {
+        this.field = fieldByKey(this.getAttribute('field'));
         if(!this.field) return;
         this.classList.add('tile');
         this.innerHTML = `<span class="tile--label">${html(this.field.label)}</span>
             <span class="tile--value"><span class="tile--number">--</span> <span class="tile--unit"></span></span>`;
         this.$number = this.querySelector('.tile--number');
         this.$unit   = this.querySelector('.tile--unit');
+    }
+    props() {
+        if(!this.field) return [];
+        return [this.field.key, 'measurement', 'sources', ...(this.field.deps ?? [])];
     }
     render() {
         if(!this.field) return;

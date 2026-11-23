@@ -17,8 +17,8 @@ cd server && uv sync && uv run pytest   # home only: Python env via uv (pyprojec
 
 Baseline on upstream/develop @ 3442b6a (2026-11-22): 461 pass, 50 fail, 11 skipped
 (home with all feat branches incl. ride panel: 528 pass, same 50 fail; server: 24 pytest).
-Redesign (branch `redesign`, old views and their tests deleted): 519 pass, 20 fail,
-11 skipped; server: 28 pytest.
+Redesign (branch `redesign`, merged into `home`; old views and their tests deleted):
+521 pass, 20 fail, 11 skipped; server: 31 pytest.
 The failures already exist upstream. They come from stale tests that import moved or
 removed modules (`src/ble/uuids.js`, `src/fit/activity.js`, `src/fit/profiles.js`, ...)
 and from jsdom gaps (`idb.test.js`). Don't fix them unless asked. Compare against this
@@ -94,6 +94,9 @@ Selected state:
   `planned`, `plannedStatus`, `sensors` (`{trainer: {status, name, battery, via}, ...}`),
   `antDriver`. FTP and weight come from the rider on the server; mode, tolerance,
   volume, units and sources stay in localStorage (per device).
+- (redesign) `rider.bodySource` is `manual | intervals | garmin`, `rider.bodySyncedAt` the
+  unix time of the last fetch. app.js fetches again on start, on login and when the
+  page becomes visible after more than 6 h (never during a ride).
 
 ### watch.js: targets per step
 
@@ -108,7 +111,8 @@ Selected state:
 ### Views
 
 (redesign) Views subclass `UIView` (`views/ui.js`): `props()` lists db keys, `config()`
-runs once, `render()` runs at most once per frame. Views created after start copy their
+runs once, `render()` runs at most once per frame. `config()` runs **before** `props()`,
+so per-instance setup that `props()` needs (like `MetricTile`'s field) goes in `config()`. Views created after start copy their
 props from the db. Buttons are real `<button>`s with
 `data-action="x" data-param="y"` (-> `ui:x`), `data-pressed="prop:value"` for
 aria-pressed, and an `aria-label` or `data-tip`, which `<ui-tooltip>` shows on hover,
@@ -116,6 +120,10 @@ keyboard focus and long-press. Screens are `<section class="screen" data-screen>
 `src/index.html`, sheets are `<dialog class="sheet" data-sheet>`. Icons:
 `icon(name)` -> `<use href="#icon-NAME">` from the sprite at the end of index.html.
 New UI: a custom element plus markup in index.html plus styles in app.css.
+UI conventions: every button is 44 px high; lists of things to connect (sensors,
+accounts) use `.sensor-row` (icon, name, status, button on the right); check layouts at
+400 px wide without horizontal scroll. README screenshots are in `doc/images/home/`, taken
+from a demo rider with simulated sensor data (never real rider data).
 
 ### .zwo parsing (`src/workouts/zwo.js`)
 
