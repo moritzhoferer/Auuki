@@ -35,7 +35,8 @@
     --zone-orange: #ff663a;
     --zone-red:    #fe340b;
 
-    --radius: 10px;
+    --radius: 10px;      /* controls: buttons, inputs, tiles inside a card */
+    --radius-lg: 16px;   /* surfaces: cards, panels, sheets */
     --gap: 12px;
     --pad: 16px;
     --bar-h: 52px;
@@ -115,7 +116,7 @@ h1:focus { outline: none; }
 .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     padding: var(--pad);
 }
 .card--accent { border-color: var(--accent); }
@@ -359,7 +360,7 @@ main { padding: var(--pad); }
     display: flex; flex-direction: column; align-items: center; gap: 10px;
     width: 100%;
     padding: 20px 8px;
-    border: 1px solid var(--border); border-radius: var(--radius);
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
     background: var(--surface); color: var(--text);
     font: inherit; font-weight: 500; cursor: pointer;
 }
@@ -396,7 +397,7 @@ rider-setup .screen--head { flex-direction: column; align-items: flex-start; gap
 /* name and meta left, Ride on the right, the shape below at the bottom of the card */
 .workout-card {
     display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr;
-    align-items: start; gap: 12px 16px;
+    align-items: center; gap: 12px 16px;
 }
 .workout-card--head { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .workout-card--meta { color: var(--muted); font-size: .9rem; }
@@ -501,6 +502,7 @@ ride-summary { display: flex; flex-direction: column; gap: var(--gap); }
 .summary--share { border-top: 1px solid var(--border); }
 .facts { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 .facts dd { margin: 0; }
+.facts .tile { border-radius: var(--radius); }
 
 /* settings, accounts */
 /* icon and name side by side, everything else full width below */
@@ -536,7 +538,7 @@ dialog.sheet {
     padding: var(--pad);
     border: 1px solid var(--border);
     border-bottom: none;
-    border-radius: 16px 16px 0 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     background: var(--surface);
     color: var(--text);
     overflow: auto;
@@ -575,7 +577,7 @@ body:not([data-ride-kind="free"]) .free-only { display: none !important; }
 .ride-interval, .ride-pacing, .ride-next, .ride-profile, .ride-elapsed, .tile {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     padding: 12px var(--pad);
 }
 
@@ -759,7 +761,7 @@ button.editor--td { cursor: pointer; }
     dialog.sheet {
         margin: auto;
         border-bottom: 1px solid var(--border);
-        border-radius: 16px;
+        border-radius: var(--radius-lg);
     }
 }
 
