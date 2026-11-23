@@ -21,17 +21,22 @@ function rideFacts(ride) {
     ].filter(Boolean).join(' · ');
 }
 
-function garminButton(ride, rider, size = 'btn--small') {
+// list rows: one small upload button per connected service (connecting is done in settings)
+const services = {intervals: 'Intervals.icu', garmin: 'Garmin Connect'};
+const shortNames = {intervals: 'Intervals', garmin: 'Garmin'};
+
+function uploadButtons(ride, rider) {
     if(ride.pending) return `<span class="status status--waiting">Waiting to sync</span>`;
-    const status = ride.uploads?.garmin ?? 'none';
-    if(equals(status, 'done')) return `<span class="status status--ok">${icon('check')} On Garmin</span>`;
-    if(!rider?.garmin?.connected) {
-        return `<button class="btn btn--ghost ${size}" data-action="screen" data-param="settings"
-            aria-label="Connect Garmin in settings to upload">Connect Garmin</button>`;
-    }
-    const retry = equals(status, 'failed');
-    return `<button class="btn ${size}" data-ride-upload data-service="garmin" data-param="${html(ride.id)}"
-        aria-label="${retry ? 'Upload failed, try again' : 'Upload this ride to Garmin Connect'}">${retry ? 'Retry Garmin' : 'Upload to Garmin'}</button>`;
+    return Object.keys(services).filter(service => rider?.[service]?.connected).map(service => {
+        const status = ride.uploads?.[service] ?? 'none';
+        if(equals(status, 'done')) {
+            return `<span class="status status--ok" data-tip="Uploaded to ${services[service]}">${icon('check')} ${shortNames[service]}</span>`;
+        }
+        const retry = equals(status, 'failed');
+        return `<button class="btn btn--small" data-ride-upload data-service="${service}" data-param="${html(ride.id)}"
+            aria-label="${retry ? `Upload to ${services[service]} failed, try again` : `Upload this ride to ${services[service]}`}">
+            ${icon(retry ? 'refresh' : 'upload')}<span>${shortNames[service]}</span></button>`;
+    }).join('');
 }
 
 class RideList extends UIView {
@@ -66,7 +71,7 @@ class RideList extends UIView {
                     <span class="ride-row--facts">${html(rideFacts(ride))}</span>
                 </span>
                 <span class="ride-row--actions">
-                    ${garminButton(ride, this.data.rider)}
+                    ${uploadButtons(ride, this.data.rider)}
                     ${ride.pending || this.hasAttribute('compact') ? '' : `
                     <button class="btn btn--icon btn--ghost" data-action="ride:download" data-param="${html(ride.id)}"
                         aria-label="Download the FIT file">${icon('download')}</button>
@@ -90,7 +95,6 @@ document.addEventListener('click', (e) => {
 });
 
 // summary: one row per place the ride can go, like the account rows
-const services = {intervals: 'Intervals.icu', garmin: 'Garmin Connect'};
 
 function shareRow({iconName, label, status, on = false, action = ''}) {
     return `<div class="sensor-row" data-status="${on ? 'on' : 'off'}">

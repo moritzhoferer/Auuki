@@ -36,12 +36,14 @@ class SensorBadges extends UIView {
             Number(isConnected(status, b.id)) - Number(isConnected(status, a.id)));
         const shown = ordered.slice(0, this.limit);
 
-        this.innerHTML = shown.map(sensor => {
-            const entry = status[sensor.id] ?? {};
-            return `<button class="badge" data-action="sheet" data-param="sensors" data-status="${entry.status ?? 'off'}"
-                    aria-label="${html(`${sensor.label}: ${statusText(entry)}`)}">${icon(sensor.icon)}</button>`;
-        }).join('') + `<button class="badge badge--more" data-action="sheet" data-param="sensors"
-            aria-label="Sensors: ${connectedCount(status)} of ${sensors.length} connected">${icon('sensors')}</button>`;
+        // one button: every icon opens the same sheet, so they share one 44 px target
+        // and can sit close together
+        const on = sensors.filter(s => isConnected(status, s.id)).map(s => s.label);
+        const label = `Sensors: ${connectedCount(status)} of ${sensors.length} connected${on.length ? ` (${on.join(', ')})` : ''}`;
+        this.innerHTML = `<button class="sensor-status" data-action="sheet" data-param="sensors" aria-label="${html(label)}">
+            ${shown.map(sensor => `<span class="sensor-status--icon" data-status="${status[sensor.id]?.status ?? 'off'}">${icon(sensor.icon)}</span>`).join('')}
+            <span class="sensor-status--more">${icon('sensors')}</span>
+        </button>`;
     }
 }
 

@@ -268,28 +268,25 @@ body[data-screen="setup"] .app-bar { display: none; }
 .app-bar--home { padding: 0 8px; gap: 8px; border-color: transparent; }
 .logo { display: block; width: 28px; height: 28px; }
 .app-bar--title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-.app-bar--sensors { display: flex; gap: 2px; }
+.app-bar--sensors { display: flex; }
 
 body:not([data-screen="ride"]) .app-bar--title { visibility: hidden; }
 
-.badge {
-    display: inline-grid; place-items: center;
-    width: 44px; height: 44px;
-    padding: 0;
+.sensor-status {
+    display: flex; align-items: center; gap: 14px;
+    height: 44px;
+    padding: 0 12px;
     border: none; border-radius: 8px;
     background: transparent;
     color: var(--off);
     cursor: pointer;
 }
-.badge:hover { background: var(--surface-2); }
-.badge[data-status="on"] { color: var(--in); }
-.badge[data-status="connecting"] { color: var(--near); animation: pulse 1.2s infinite; }
-/* opens the sensors sheet: same grey as the statuses, a divider sets it apart */
-.badge--more { position: relative; margin-left: 9px; }
-.badge--more::before {
-    content: ''; position: absolute; left: -6px; top: 12px; bottom: 12px;
-    width: 1px; background: var(--border);
-}
+.sensor-status:hover { background: var(--surface-2); }
+.sensor-status--icon, .sensor-status--more { display: flex; }
+.sensor-status--icon[data-status="on"] { color: var(--in); }
+.sensor-status--icon[data-status="connecting"] { color: var(--near); animation: pulse 1.2s infinite; }
+/* the sensors icon: same grey as the statuses, a divider sets it apart */
+.sensor-status--more { padding-left: 14px; border-left: 1px solid var(--border); }
 
 @keyframes pulse { 50% { opacity: .4; } }
 
@@ -492,7 +489,8 @@ ant-device-request { display: flex; flex-direction: column; gap: 8px; margin-top
 .ride-row--text { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; }
 .ride-row--name { font-weight: 500; }
 .ride-row--facts { color: var(--muted); font-size: .85rem; }
-.ride-row--actions { display: flex; align-items: center; gap: 4px; }
+.ride-row--actions { display: flex; align-items: center; gap: 6px; }
+.ride-row--actions .status { padding: 0 6px; }
 
 .status { display: inline-flex; align-items: center; gap: 4px; font-size: .9rem; }
 .status--ok { color: var(--in); }
@@ -807,13 +805,11 @@ button.editor--td { cursor: pointer; }
     .workout-card .profile { height: 36px; }
 
     /* only connected sensors in the bar, the + button lists them all */
-    .app-bar--sensors .badge:not([data-status="on"]):not([data-status="connecting"]):not(.badge--more) { display: none; }
+    .sensor-status--icon:not([data-status="on"]):not([data-status="connecting"]) { display: none; }
     .app-bar--sensors { margin-left: auto; }
     /* nothing left of it to divide from unless a sensor is connected */
-    .badge--more { margin-left: 0; }
-    .badge--more::before { display: none; }
-    .badge:is([data-status="on"], [data-status="connecting"]) ~ .badge--more { margin-left: 9px; }
-    .badge:is([data-status="on"], [data-status="connecting"]) ~ .badge--more::before { display: block; }
+    .sensor-status--more { padding-left: 0; border-left: none; }
+    .sensor-status--icon:is([data-status="on"], [data-status="connecting"]) ~ .sensor-status--more { padding-left: 14px; border-left: 1px solid var(--border); }
     .choice { min-height: 100px; padding: 12px; }
 }
 
