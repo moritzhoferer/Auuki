@@ -134,50 +134,49 @@
                 <h1 class="visually-hidden">Riding</h1>
                 <div class="ride-layout">
                     <div class="ride-main">
-                        <interval-block class="ride-interval workout-only">
-                            <div class="rp-interval--top">
-                                <span class="rp-interval--label"></span>
-                                <span class="rp-interval--elapsed"></span>
-                            </div>
-                            <div class="rp-interval--countdown" aria-label="Time left in this interval">00:00</div>
-                            <div class="rp-interval--progress" aria-hidden="true"><div class="rp-interval--progress-bar"></div></div>
-                        </interval-block>
+                        <!-- one card: interval countdown, 3 s power with its gauge, interval stats -->
+                        <div class="ride-focus">
+                            <interval-block class="ride-interval workout-only">
+                                <div class="rp-interval--label"></div>
+                                <div class="rp-interval--row">
+                                    <div class="rp-interval--countdown" aria-label="Time left in this interval">00:00</div>
+                                    <div class="rp-interval--progress" aria-hidden="true"><div class="rp-interval--progress-bar"></div></div>
+                                    <span class="rp-interval--elapsed"></span>
+                                </div>
+                            </interval-block>
 
-                        <div class="ride-elapsed free-only">
-                            <span class="tile--label">Elapsed</span>
-                            <elapsed-time class="ride-elapsed--value">00:00</elapsed-time>
+                            <div class="ride-elapsed free-only">
+                                <span class="tile--label">Elapsed</span>
+                                <elapsed-time class="ride-elapsed--value">00:00</elapsed-time>
+                            </div>
+
+                            <pacing-box class="ride-pacing" data-zone="none">
+                                <div class="rp-pacing--status" aria-live="polite"></div>
+                                <div class="rp-pacing--value"><span class="rp-pacing--power">0</span><span class="rp-pacing--unit">W · 3 s</span></div>
+                                <div class="rp-gauge workout-only" aria-hidden="true">
+                                    <div class="rp-gauge--labels"><span class="rp-gauge--low"></span><span class="rp-gauge--high"></span></div>
+                                    <div class="rp-gauge--track">
+                                        <div class="rp-gauge--zone rp-gauge--zone-out"></div>
+                                        <div class="rp-gauge--zone rp-gauge--zone-near"></div>
+                                        <div class="rp-gauge--zone rp-gauge--zone-in"></div>
+                                        <div class="rp-gauge--zone rp-gauge--zone-near"></div>
+                                        <div class="rp-gauge--zone rp-gauge--zone-out"></div>
+                                    </div>
+                                    <div class="rp-gauge--avg"></div>
+                                    <div class="rp-gauge--needle"></div>
+                                </div>
+                            </pacing-box>
+
+                            <!-- the diamond on the gauge is the interval average -->
+                            <div class="rp-stats workout-only">
+                                <span class="rp-stat"><i class="rp-legend--avg" aria-hidden="true"></i><span class="rp-stat--label">Interval avg</span>
+                                    <span class="rp-stat--value"><lap-power-status data-zone="none">--</lap-power-status> <span class="tile--unit">W</span></span></span>
+                                <span class="rp-stat"><span class="rp-stat--label">In range</span>
+                                    <span class="rp-stat--value"><time-in-range>--</time-in-range></span></span>
+                            </div>
                         </div>
 
-                        <pacing-box class="ride-pacing" data-zone="none">
-                            <div class="rp-pacing--status" aria-live="polite"></div>
-                            <div class="rp-pacing--value"><span class="rp-pacing--power">0</span><span class="rp-pacing--unit">W · 3 s</span></div>
-                            <div class="rp-gauge workout-only" aria-hidden="true">
-                                <div class="rp-gauge--labels"><span class="rp-gauge--low"></span><span class="rp-gauge--high"></span></div>
-                                <div class="rp-gauge--track">
-                                    <div class="rp-gauge--zone rp-gauge--zone-out"></div>
-                                    <div class="rp-gauge--zone rp-gauge--zone-near"></div>
-                                    <div class="rp-gauge--zone rp-gauge--zone-in"></div>
-                                    <div class="rp-gauge--zone rp-gauge--zone-near"></div>
-                                    <div class="rp-gauge--zone rp-gauge--zone-out"></div>
-                                </div>
-                                <div class="rp-gauge--avg"></div>
-                                <div class="rp-gauge--needle"></div>
-                            </div>
-                            <div class="rp-gauge--legend workout-only" aria-hidden="true">
-                                <span><i class="rp-legend--now"></i>3 s power</span>
-                                <span><i class="rp-legend--avg"></i>interval avg</span>
-                            </div>
-                        </pacing-box>
-
                         <div class="tiles">
-                            <div class="tile workout-only">
-                                <span class="tile--label">Interval avg</span>
-                                <span class="tile--value"><lap-power-status class="tile--number" data-zone="none">--</lap-power-status> <span class="tile--unit">W</span></span>
-                            </div>
-                            <div class="tile workout-only">
-                                <span class="tile--label">Time in range</span>
-                                <span class="tile--value"><time-in-range class="tile--number">--</time-in-range></span>
-                            </div>
                             <tile-row class="tiles--extra" fields="heartRate,cadence,speedVirtual,distance,smo2,thb,coreBodyTemperature,skinTemperature,virtualGear,powerAvg,kcal,ascent"></tile-row>
                         </div>
                     </div>

@@ -14,7 +14,24 @@ import {
 
 xf.sub('db:rideKind', (kind) => { document.body.dataset.rideKind = kind; });
 // started | paused | stopped, for parts of the page that change during a ride
-xf.sub('db:watchStatus', (status) => { document.body.dataset.watch = status; });
+xf.sub('db:watchStatus', (status) => { document.body.dataset.watch = status; showControls(); });
+
+// the bottom bar during a running workout (see app.css): shown on any input,
+// hidden again after a few seconds without one
+const controlsHideAfter = 4000;
+let controlsTimer = 0;
+function showControls() {
+    const $bar = document.querySelector('.ride-bar');
+    if(!$bar) return;
+    $bar.dataset.shown = 'true';
+    clearTimeout(controlsTimer);
+    controlsTimer = setTimeout(() => { $bar.dataset.shown = 'false'; }, controlsHideAfter);
+}
+for(const type of ['pointermove', 'pointerdown', 'keydown']) {
+    document.addEventListener(type, () => {
+        if(equals(document.body.dataset.screen, 'ride')) showControls();
+    }, {passive: true});
+}
 
 // adds the 'last 5 seconds of the interval' check to UIView
 class RideView extends UIView {
