@@ -150,9 +150,9 @@
 
                         <pacing-box class="ride-pacing" data-zone="none">
                             <div class="rp-pacing--status" aria-live="polite"></div>
-                            <div class="rp-pacing--value"><span class="rp-pacing--power">0</span><span class="rp-pacing--unit">W</span></div>
-                            <div class="rp-pacing--caption">3 s power</div>
+                            <div class="rp-pacing--value"><span class="rp-pacing--power">0</span><span class="rp-pacing--unit">W · 3 s</span></div>
                             <div class="rp-gauge workout-only" aria-hidden="true">
+                                <div class="rp-gauge--labels"><span class="rp-gauge--low"></span><span class="rp-gauge--high"></span></div>
                                 <div class="rp-gauge--track">
                                     <div class="rp-gauge--zone rp-gauge--zone-out"></div>
                                     <div class="rp-gauge--zone rp-gauge--zone-near"></div>
@@ -162,7 +162,10 @@
                                 </div>
                                 <div class="rp-gauge--avg"></div>
                                 <div class="rp-gauge--needle"></div>
-                                <div class="rp-gauge--labels"><span class="rp-gauge--low"></span><span class="rp-gauge--high"></span></div>
+                            </div>
+                            <div class="rp-gauge--legend workout-only" aria-hidden="true">
+                                <span><i class="rp-legend--now"></i>3 s power</span>
+                                <span><i class="rp-legend--avg"></i>interval avg</span>
                             </div>
                         </pacing-box>
 

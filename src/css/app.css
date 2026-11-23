@@ -590,22 +590,23 @@ interval-block.final .rp-interval--countdown { color: var(--near); }
 /* pacing */
 pacing-box { display: flex; flex-direction: column; gap: 4px; }
 .rp-pacing--status { min-height: 1.4em; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: .9rem; }
-.rp-pacing--value { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+.rp-pacing--value { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
 .rp-pacing--power { font-size: clamp(3.4rem, 18vw, 6rem); font-weight: 700; line-height: 1; }
-.rp-pacing--unit { color: var(--muted); font-size: 1.4rem; }
-.rp-pacing--caption { color: var(--muted); font-size: .8rem; }
+.rp-pacing--unit { color: var(--muted); font-size: 1.2rem; }
 pacing-box[data-zone="in"]   .rp-pacing--status, pacing-box[data-zone="in"]   .rp-pacing--power { color: var(--in); }
 pacing-box[data-zone="near"] .rp-pacing--status, pacing-box[data-zone="near"] .rp-pacing--power { color: var(--near); }
 pacing-box[data-zone="out"]  .rp-pacing--status, pacing-box[data-zone="out"]  .rp-pacing--power { color: var(--out); }
-pacing-box[data-zone="none"] .rp-gauge { visibility: hidden; }
+pacing-box[data-zone="none"] :is(.rp-gauge, .rp-gauge--legend) { visibility: hidden; }
 
-.rp-gauge { position: relative; width: 100%; margin-top: 10px; padding-bottom: 20px; }
+/* gauge: range labels and ticks above the bar, 3 s needle across it, the interval
+   average below it on its own, so it never covers a label at the edge of the range */
+.rp-gauge { position: relative; width: 100%; margin-top: 8px; padding: 22px 0 18px; }
 .rp-gauge--track { display: flex; height: 10px; border-radius: 5px; overflow: hidden; }
 .rp-gauge--zone-out  { width: 15%; background: color-mix(in srgb, var(--out) 45%, transparent); }
 .rp-gauge--zone-near { width: 15%; background: color-mix(in srgb, var(--near) 45%, transparent); }
 .rp-gauge--zone-in   { width: 40%; background: color-mix(in srgb, var(--in) 55%, transparent); }
 .rp-gauge--needle {
-    position: absolute; top: -5px; left: 50%;
+    position: absolute; top: 17px; left: 50%;
     width: 4px; height: 20px; margin-left: -2px;
     border-radius: 2px;
     background: var(--text);
@@ -613,18 +614,29 @@ pacing-box[data-zone="none"] .rp-gauge { visibility: hidden; }
     transition: left .4s ease-out;
 }
 .rp-gauge--avg {
-    position: absolute; top: 12px; left: 50%;
+    position: absolute; top: 37px; left: 50%;
     width: 10px; height: 10px; margin-left: -5px;
     transform: rotate(45deg);
     background: var(--muted);
+    transition: left .4s ease-out;
 }
 .rp-gauge--avg[data-zone="in"]   { background: var(--in); }
 .rp-gauge--avg[data-zone="near"] { background: var(--near); }
 .rp-gauge--avg[data-zone="out"]  { background: var(--out); }
-.rp-gauge--labels { position: absolute; left: 0; right: 0; bottom: 0; height: 16px; color: var(--muted); font-size: .75rem; }
-.rp-gauge--low, .rp-gauge--high { position: absolute; transform: translateX(-50%); }
+.rp-gauge--labels { position: absolute; left: 0; right: 0; top: 0; height: 16px; font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rp-gauge--low, .rp-gauge--high { position: absolute; transform: translateX(-50%); line-height: 16px; }
 .rp-gauge--low  { left: 30%; }
 .rp-gauge--high { left: 70%; }
+/* tick from the label down to the green edge */
+.rp-gauge--low::after, .rp-gauge--high::after {
+    content: ''; position: absolute; left: 50%; top: 17px;
+    width: 2px; height: 15px; margin-left: -1px;
+    background: var(--muted);
+}
+.rp-gauge--legend { display: flex; gap: 16px; color: var(--muted); font-size: .75rem; }
+.rp-gauge--legend span { display: inline-flex; align-items: center; gap: 6px; }
+.rp-legend--now { width: 3px; height: 12px; border-radius: 1px; background: var(--text); }
+.rp-legend--avg { width: 8px; height: 8px; transform: rotate(45deg); background: var(--in); }
 
 /* tiles */
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--gap); }
