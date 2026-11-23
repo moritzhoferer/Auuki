@@ -91,20 +91,34 @@ customElements.define('today-card', TodayCard);
 
 
 //
-// <planned-list>  this week's plan from Intervals.icu
+// <planned-list>  the plan from Intervals.icu: today, the next 7 days behind "More"
 //
 class PlannedList extends UIView {
     props() { return ['planned', 'plannedStatus', 'ftp', 'rider']; }
+    config() {
+        this.more = false;
+        this.addEventListener('click', (e) => {
+            if(!e.target.closest('.planned-more')) return;
+            this.more = !this.more;
+            this.render();
+        }, this.signal);
+    }
     render() {
         const { planned = [], ftp, rider } = this.data;
-        const $section = this.closest('section, .panel');
-        if(!rider?.intervals?.connected || planned.length === 0) {
-            this.innerHTML = `<p class="muted">${rider?.intervals?.connected ?
-                'No planned workouts this week.' : 'Connect Intervals.icu in settings to see your plan.'}</p>`;
+        if(!rider?.intervals?.connected) {
+            this.innerHTML = `<p class="muted">Connect Intervals.icu in settings to see your plan.</p>`;
             return;
         }
-        this.innerHTML = `<div class="card-grid">${planned.map(w =>
-            workoutCard(w, ftp, 'ride:planned', {when: weekday(w.meta?.startDateLocal)})).join('')}</div>`;
+        const card = (w) => workoutCard(w, ftp, 'ride:planned', {when: weekday(w.meta?.startDateLocal)});
+        const today = planned.filter(w => isToday(w.meta?.startDateLocal));
+        const later = planned.filter(w => !isToday(w.meta?.startDateLocal));
+        // the toggle is the last tile of the grid; a plain button once the grid is one column
+        const toggle = later.length ? `<button class="btn btn--ghost planned-more" aria-expanded="${this.more}"
+                aria-label="${this.more ? 'Show only today' : `Show ${later.length} more in the next 7 days`}">
+                <span>${this.more ? 'Less' : `${later.length} more`}</span>${icon('chevron', 'planned-more--chevron')}</button>` : '';
+        const cards = [...today, ...(this.more ? later : [])].map(card).join('');
+        this.innerHTML = `${today.length ? '' : `<p class="muted">Nothing planned for today.</p>`}
+            ${cards || toggle ? `<div class="card-grid">${cards}${toggle}</div>` : ''}`;
     }
 }
 

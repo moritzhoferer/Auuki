@@ -36,7 +36,7 @@ resistance and slope modes, .FIT recording. On top of that:
 
 <img alt="Riding a workout: interval countdown, 3 s power in the target range, tiles and the workout profile" src="doc/images/home/desktop-ride.png" />
 
-<img alt="Workouts: this week's plan from Intervals.icu and the built-in library" src="doc/images/home/desktop-workouts.png" />
+<img alt="Workouts: the plan from Intervals.icu and the built-in library" src="doc/images/home/desktop-workouts.png" />
 
 <table>
   <tr>

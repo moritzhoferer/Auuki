@@ -466,6 +466,14 @@ sensor-list { display: flex; flex-direction: column; gap: var(--gap); }
 .sensor-more > summary .sensor-row--status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sensor-more--chevron { width: 22px; height: 22px; margin-right: 8px; color: var(--muted); transition: transform .2s; }
 .sensor-more[open] .sensor-more--chevron { transform: rotate(180deg); }
+planned-list { display: flex; flex-direction: column; gap: var(--gap); container-type: inline-size; }
+.planned-more { min-height: 120px; border-style: dashed; flex-direction: column; color: var(--muted); }
+.planned-more:hover { color: var(--text); }
+@container (max-width: 495px) {
+    .planned-more { min-height: 44px; justify-self: start; flex-direction: row; border-style: solid; color: inherit; }
+}
+.planned-more--chevron { transition: transform .2s; }
+.planned-more[aria-expanded="true"] .planned-more--chevron { transform: rotate(180deg); }
 .sensor-ant { border-top: 1px solid var(--border); border-bottom: none; padding-top: var(--gap); }
 .sensor-sources { display: flex; flex-direction: column; gap: 8px; }
 .sensor-sources select { width: auto; }

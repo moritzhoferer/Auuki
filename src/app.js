@@ -1,5 +1,5 @@
 import { xf, equals } from './functions.js';
-import { getStartEndOfWeek, isToday } from './utils.js';
+import { isoDate, isToday } from './utils.js';
 import { models } from './models/models.js';
 import { server, errorText } from './models/server.js';
 import { rides } from './models/rides.js';
@@ -202,6 +202,8 @@ async function refreshMe() {
 
 // --- planned workouts and rides ------------------------------------------------------------
 
+const plannedDays = 7;
+
 async function loadPlanned() {
     if(!db.rider?.intervals?.connected) {
         db.planned = [];
@@ -209,8 +211,10 @@ async function loadPlanned() {
         return;
     }
     db.plannedStatus = 'loading';
-    const { startOfWeek, endOfWeek } = getStartEndOfWeek(new Date(), true);
-    const result = await server.planned(startOfWeek, endOfWeek);
+    // today and the next 7 days
+    const end = new Date();
+    end.setDate(end.getDate() + plannedDays);
+    const result = await server.planned(isoDate(new Date()), isoDate(end));
     if(!result.ok) {
         db.plannedStatus = 'error';
         return;
