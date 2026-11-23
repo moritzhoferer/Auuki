@@ -49,7 +49,7 @@ function workoutCard(workout, ftp, action, {when = '', primary = false} = {}) {
         </header>
         ${profileSvg(workout, ftp)}
         <button class="btn ${primary ? 'btn--primary' : ''}" data-action="${action}" data-param="${html(workout.id)}"
-            aria-label="Ride ${html(name)}">${primary ? 'Ride this' : 'Ride'}</button>
+            aria-label="Ride ${html(name)}">Ride</button>
     </article>`;
 }
 
