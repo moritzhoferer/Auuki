@@ -672,7 +672,8 @@ next-interval.final { border-color: var(--near); }
 ride-profile { display: flex; flex-direction: column; gap: 6px; }
 ride-profile svg { width: 100%; height: 90px; display: block; }
 .rp-profile--todo rect { fill: var(--surface-2); }
-.rp-profile--done rect { fill: var(--muted); }
+/* done: a step above todo, dark enough for the light power line on top */
+.rp-profile--done rect { fill: var(--off); }
 .rp-profile--power { fill: none; stroke: var(--accent-2); stroke-width: 2; }
 .rp-profile--now { stroke: var(--text); stroke-width: 2; }
 .rp-profile--times { display: flex; justify-content: space-between; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
