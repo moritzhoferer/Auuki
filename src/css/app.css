@@ -36,7 +36,8 @@
     --zone-red:    #fe340b;
 
     --radius: 10px;      /* controls: buttons, inputs, tiles inside a card */
-    --radius-lg: 16px;   /* surfaces: cards, panels, sheets */
+    --card-pad: 14px;    /* inside every card and panel, at every width */
+    --radius-lg: calc(var(--card-pad) + var(--radius)); /* surfaces: concentric with a button inside */
     --gap: 12px;
     --pad: 16px;
     --bar-h: 52px;
@@ -117,7 +118,7 @@ h1:focus { outline: none; }
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: var(--pad);
+    padding: var(--card-pad);
 }
 .card--accent { border-color: var(--accent); }
 
@@ -576,7 +577,7 @@ body:not([data-ride-kind="free"]) .free-only { display: none !important; }
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 12px var(--pad);
+    padding: var(--card-pad);
 }
 
 /* interval countdown */
@@ -772,7 +773,6 @@ button.editor--td { cursor: pointer; }
     :root { --pad: 12px; --gap: 10px; --bar-h: 48px; }
     h1 { font-size: 1.3rem; }
     .screen { gap: var(--gap); }
-    .card { padding: 14px; }
 
     /* Back becomes an icon button, its text stays for screen readers */
     .btn--back { width: 44px; padding: 0; }
@@ -798,7 +798,6 @@ button.editor--td { cursor: pointer; }
     .ride-bar .segmented { justify-self: stretch; }
     target-stepper { justify-self: stretch; }
     target-stepper .stepper--value { flex: 1; }
-    .ride-interval, .ride-pacing, .ride-next, .ride-profile, .ride-elapsed, .tile { padding: 10px 12px; }
     .tile--value { font-size: 1.5rem; }
     ride-profile svg { height: 70px; }
 
@@ -811,7 +810,7 @@ button.editor--td { cursor: pointer; }
     /* nothing left of it to divide from unless a sensor is connected */
     .sensor-status--more { padding-left: 0; border-left: none; }
     .sensor-status--icon:is([data-status="on"], [data-status="connecting"]) ~ .sensor-status--more { padding-left: 14px; border-left: 1px solid var(--border); }
-    .choice { min-height: 100px; padding: 12px; }
+    .choice { min-height: 100px; }
 }
 
 @media (max-width: 420px) {
