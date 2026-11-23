@@ -490,6 +490,7 @@ ant-device-request { display: flex; flex-direction: column; gap: 8px; margin-top
 .status--waiting { color: var(--near); }
 
 ride-summary { display: flex; flex-direction: column; gap: var(--gap); }
+.summary--share { border-top: 1px solid var(--border); }
 .facts { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 .facts dd { margin: 0; }
 

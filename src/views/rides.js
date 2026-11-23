@@ -3,7 +3,7 @@ import { UIView, icon, html, duration } from './ui.js';
 
 //
 // <ride-list limit="3">  recent rides with their Garmin status
-// <ride-summary>         the ride just saved
+// <ride-summary>         the ride just saved: facts, then upload and download rows
 //
 
 function day(timestamp) {
@@ -30,7 +30,7 @@ function garminButton(ride, rider, size = 'btn--small') {
             aria-label="Connect Garmin in settings to upload">Connect Garmin</button>`;
     }
     const retry = equals(status, 'failed');
-    return `<button class="btn ${size}" data-ride-upload data-param="${html(ride.id)}"
+    return `<button class="btn ${size}" data-ride-upload data-service="garmin" data-param="${html(ride.id)}"
         aria-label="${retry ? 'Upload failed, try again' : 'Upload this ride to Garmin Connect'}">${retry ? 'Retry Garmin' : 'Upload to Garmin'}</button>`;
 }
 
@@ -86,8 +86,36 @@ document.addEventListener('click', (e) => {
     if(!$btn || $btn.disabled) return;
     $btn.disabled = true;
     $btn.textContent = 'Uploading…';
-    xf.dispatch('ui:ride:upload', {id: $btn.dataset.param, service: 'garmin'});
+    xf.dispatch('ui:ride:upload', {id: $btn.dataset.param, service: $btn.dataset.service ?? 'garmin'});
 });
+
+// summary: one row per place the ride can go, like the account rows
+const services = {intervals: 'Intervals.icu', garmin: 'Garmin Connect'};
+
+function shareRow({iconName, label, status, on = false, action = ''}) {
+    return `<div class="sensor-row" data-status="${on ? 'on' : 'off'}">
+        ${icon(iconName, 'sensor-row--icon')}
+        <span class="sensor-row--text"><span class="sensor-row--label">${html(label)}</span>
+            <span class="sensor-row--status">${html(status)}</span></span>
+        <span class="sensor-row--actions">${action}</span>
+    </div>`;
+}
+
+function uploadRow(ride, rider, service) {
+    const label = services[service];
+    const status = ride.uploads?.[service] ?? 'none';
+    if(ride.pending) return shareRow({iconName: service, label, status: 'Waiting to sync with the server'});
+    if(equals(status, 'done')) return shareRow({iconName: service, label, status: 'Uploaded', on: true});
+    if(!rider?.[service]?.connected) {
+        return shareRow({iconName: service, label, status: 'Not connected',
+            action: `<button class="btn btn--ghost" data-action="screen" data-param="settings"
+                aria-label="Connect ${label} in settings">Connect</button>`});
+    }
+    const failed = equals(status, 'failed');
+    return shareRow({iconName: service, label, status: failed ? 'Upload failed' : 'Not uploaded yet',
+        action: `<button class="btn" data-ride-upload data-service="${service}" data-param="${html(ride.id)}"
+            aria-label="Upload this ride to ${label}">${failed ? 'Retry' : 'Upload'}</button>`});
+}
 
 class RideSummary extends UIView {
     props() { return ['ride', 'rider']; }
@@ -107,9 +135,12 @@ class RideSummary extends UIView {
         ];
         this.innerHTML = `<h2 class="summary--name">${html(ride.name)}</h2>
             <dl class="facts">${facts.map(([k, v]) => `<div class="tile"><dt class="tile--label">${k}</dt><dd class="tile--value">${html(v)}</dd></div>`).join('')}</dl>
-            <div class="row summary--actions">
-                ${garminButton(ride, this.data.rider, '')}
-                ${ride.pending ? '' : `<button class="btn btn--ghost" data-action="ride:download" data-param="${html(ride.id)}">${icon('download')}<span>Download FIT</span></button>`}
+            <div class="summary--share">
+                ${uploadRow(ride, this.data.rider, 'intervals')}
+                ${uploadRow(ride, this.data.rider, 'garmin')}
+                ${ride.pending ? '' : shareRow({iconName: 'download', label: 'FIT file', status: 'For other apps',
+                    action: `<button class="btn btn--ghost" data-action="ride:download" data-param="${html(ride.id)}"
+                        aria-label="Download the FIT file">Download</button>`})}
             </div>`;
     }
 }
