@@ -228,24 +228,29 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { border-color
 
 .form-error { color: var(--out); font-size: .9rem; }
 
-/* radio choices: one row per option, the whole row is the target */
-.choice-group { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
-.choice-group legend { padding: 0; margin-bottom: 8px; font-weight: 700; }
-.choice-row {
-    display: flex; align-items: center; gap: 12px;
-    min-height: 48px; padding: 8px 12px;
-    border: 1px solid var(--border); border-radius: var(--radius);
-    background: var(--bg); cursor: pointer;
+/* radio segments: one row, looks like .segmented */
+.segment-group { display: flex; margin: 0; padding: 0; border: 0; min-width: 0; }
+.segment {
+    flex: 1; min-width: 0;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 44px; padding: 0 8px; margin-left: -1px;
+    border: 1px solid var(--border); background: var(--bg);
+    font-weight: 600; font-size: .9rem; text-align: center; cursor: pointer;
 }
-.choice-row:has(input:checked) { border-color: var(--accent); background: #1b2540; }
-.choice-row.is-off { cursor: not-allowed; opacity: .6; }
-.choice-row input { width: 20px; min-height: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: none; }
-.choice-row > span { display: flex; flex-direction: column; }
-.choice-row .muted { font-size: .85rem; }
+.segment:first-of-type { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; }
+.segment:last-of-type  { border-radius: 0 var(--radius) var(--radius) 0; }
+.segment:hover { background: var(--surface-2); }
+.segment:has(input:checked) { position: relative; background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.segment:has(input:focus-visible) { outline: 2px solid var(--accent-2); outline-offset: 2px; position: relative; }
+.segment.is-off { cursor: not-allowed; color: var(--off); background: transparent; }
 body-source { display: flex; flex-direction: column; gap: 8px; }
-/* settings shows the values in the fields below */
+.body-source--hint { font-size: .85rem; }
+/* settings shows the values in <body-settings> below */
 [data-screen="settings"] .body-source--values { display: none; }
-input[readonly] { color: var(--muted); border-style: dashed; }
+.body-readout { display: flex; align-items: center; gap: 8px; }
+.body-readout--values { flex: 1; font-size: 1.1rem; color: var(--muted); }
+.body-readout--values strong { color: var(--text); font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.body-readout--note { font-size: .85rem; margin-top: -4px; }
 
 form.body-form, form.pin-form, form.profile-form { display: flex; flex-direction: column; gap: var(--gap); }
 

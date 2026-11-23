@@ -242,6 +242,7 @@ def test_body_source_intervals(tmp_path):
     with_intervals(client)
     me = client.put("/api/me/body-source", json={"source": "intervals"}).json()
     assert (me["bodySource"], me["ftp"], me["weight"]) == ("intervals", 295, 72.4)
+    assert me["bodySyncedAt"] > 0
 
     client.patch("/api/me", json={"ftp": 200})
     me = client.post("/api/me/body/sync").json()

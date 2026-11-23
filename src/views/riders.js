@@ -255,28 +255,46 @@ class BodySettings extends UIView {
     render() {
         const rider = this.data.rider ?? {};
         const source = sourceNames[rider.bodySource] ? rider.bodySource : 'manual';
-        const manual = equals(source, 'manual');
-        const lock = manual ? '' : 'readonly';
+        const saved = `<span class="saved muted" role="status" ${this.saved ? '' : 'hidden'}>${equals(source, 'manual') ? 'Saved' : 'Updated'}</span>`;
+        // from a service: the values as text, one line, with a refresh button
+        if(!equals(source, 'manual')) {
+            this.innerHTML = `<div class="body-readout">
+                <span class="body-readout--values"><strong>${rider.ftp ?? '--'}</strong> W · <strong>${rider.weight ?? '--'}</strong> kg</span>
+                ${saved}
+                <button class="btn btn--ghost btn--small" type="button" data-action="body:sync"
+                    aria-label="Load FTP and weight from ${sourceNames[source]} now">${icon('refresh')}<span>Update</span></button>
+            </div>
+            <p class="muted body-readout--note">From ${sourceNames[source]}, ${syncedText(rider.bodySyncedAt)}.</p>`;
+            return;
+        }
         this.innerHTML = `<form class="body-form">
             <div class="row">
                 <label class="field"><span>FTP</span>
-                    <span class="input-unit"><input name="ftp" type="number" inputmode="numeric" min="50" max="700" required ${lock} value="${rider.ftp ?? 200}"><span>W</span></span></label>
+                    <span class="input-unit"><input name="ftp" type="number" inputmode="numeric" min="50" max="700" required value="${rider.ftp ?? 200}"><span>W</span></span></label>
                 <label class="field"><span>Weight</span>
-                    <span class="input-unit"><input name="weight" type="number" inputmode="decimal" step="0.1" min="25" max="250" required ${lock} value="${rider.weight ?? 75}"><span>kg</span></span></label>
+                    <span class="input-unit"><input name="weight" type="number" inputmode="decimal" step="0.1" min="25" max="250" required value="${rider.weight ?? 75}"><span>kg</span></span></label>
             </div>
-            ${manual ?
-                `<div class="row"><button class="btn" type="submit">Save</button><span class="saved muted" role="status" ${this.saved ? '' : 'hidden'}>Saved</span></div>` :
-                `<div class="row"><span class="muted">From ${sourceNames[source]}, updated when you open Auuki.</span>
-                    <button class="btn btn--ghost btn--small" type="button" data-action="body:sync"
-                        aria-label="Load FTP and weight from ${sourceNames[source]} now">${icon('refresh')}<span>Update now</span></button>
-                    <span class="saved muted" role="status" ${this.saved ? '' : 'hidden'}>Updated</span></div>`}
+            <div class="row"><button class="btn" type="submit">Save</button>${saved}</div>
         </form>`;
     }
 }
 
 customElements.define('body-settings', BodySettings);
 
+// unix seconds -> 'updated today 08:12' / 'updated yesterday 19:40' / 'updated 3 Nov'
+function syncedText(seconds = 0) {
+    if(!seconds) return 'not updated yet';
+    const date = new Date(seconds * 1000);
+    const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const days = Math.round((day(new Date()) - day(date)) / 864e5);
+    const time = date.toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'});
+    if(days === 0) return `updated today ${time}`;
+    if(days === 1) return `updated yesterday ${time}`;
+    return `updated ${date.toLocaleDateString(undefined, {day: 'numeric', month: 'short'})}`;
+}
+
 const sourceNames = {intervals: 'Intervals.icu', garmin: 'Garmin Connect', manual: 'Enter by hand'};
+const sourceShort = {intervals: 'Intervals.icu', garmin: 'Garmin', manual: 'By hand'};
 
 class BodySource extends UIView {
     props() { return ['rider']; }
@@ -295,19 +313,21 @@ class BodySource extends UIView {
         const current = rider.bodySource ?? 'manual';
         const connected = {intervals: rider.intervals?.connected, garmin: rider.garmin?.connected, manual: true};
         const loading = equals(this.state.status, 'loading');
-        const options = ['intervals', 'garmin', 'manual'].map(key => {
-            const hint = connected[key] ? '' : `<span class="muted">Connect ${sourceNames[key]} first</span>`;
-            return `<label class="choice-row ${connected[key] ? '' : 'is-off'}">
-                <input type="radio" name="bodySource" value="${key}" ${equals(current, key) ? 'checked' : ''}
+        const keys = ['intervals', 'garmin', 'manual'];
+        // one row of segments; a source that isn't connected is dimmed and says why below
+        const options = keys.map(key => `<label class="segment ${connected[key] ? '' : 'is-off'}">
+                <input class="visually-hidden" type="radio" name="bodySource" value="${key}" ${equals(current, key) ? 'checked' : ''}
                     ${connected[key] && !loading ? '' : 'disabled'}>
-                <span><span>${sourceNames[key]}</span>${hint}</span></label>`;
-        }).join('');
+                <span>${sourceShort[key]}</span></label>`).join('');
+        const off = keys.filter(key => !connected[key]).map(key => sourceNames[key]);
+        const offHint = off.length ? `<p class="muted body-source--hint">To use ${off.join(' or ')}, connect it under Accounts.</p>` : '';
         const values = equals(current, 'manual') ? '' :
             `<p class="muted body-source--values" role="status">${loading ? 'Loading…' : `FTP ${rider.ftp} W · ${rider.weight} kg`}</p>`;
-        this.innerHTML = `<fieldset class="choice-group">
-                <legend>Where do FTP and weight come from?</legend>
+        this.innerHTML = `<fieldset class="segment-group">
+                <legend class="visually-hidden">Where do FTP and weight come from?</legend>
                 ${options}
             </fieldset>
+            ${offHint}
             ${values}
             <p class="form-error" role="alert" ${equals(this.state.status, 'error') ? '' : 'hidden'}>${html(this.state.error)}</p>`;
     }

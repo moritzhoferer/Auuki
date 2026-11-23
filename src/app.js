@@ -52,12 +52,21 @@ function afterLogin() {
     syncBody();
 }
 
-// FTP and weight follow Intervals.icu or Garmin when the rider chose so
+// FTP and weight follow Intervals.icu or Garmin when the rider chose so:
+// on every start and login, and when the app comes back after a while (a PWA can stay open for days)
+const bodyStaleAfter = 6 * 3600; // s
+
 async function syncBody() {
     if(!db.rider || equals(db.rider.bodySource ?? 'manual', 'manual')) return;
     const result = await server.syncBody();
     if(result.ok) setRider(result.data);
 }
+
+document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState !== 'visible' || !db.rider || isRiding()) return;
+    const age = Date.now() / 1000 - (db.rider.bodySyncedAt ?? 0);
+    if(age > bodyStaleAfter) syncBody();
+});
 
 // --- riders -----------------------------------------------------------------------------
 

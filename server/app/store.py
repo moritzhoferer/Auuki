@@ -174,6 +174,7 @@ class Store:
             "ftp": rider.get("ftp", 200),
             "weight": rider.get("weight", 75),
             "bodySource": rider.get("bodySource", "manual"),
+            "bodySyncedAt": rider.get("bodySyncedAt", 0),  # unix seconds, 0 = never
             "intervals": {
                 "connected": bool(intervals.get("apiKey")),
                 "athleteId": intervals.get("athleteId", ""),

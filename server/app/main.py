@@ -7,6 +7,7 @@ session is a plain HttpOnly cookie and no CORS is needed.
 import json
 import logging
 import re
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -219,18 +220,21 @@ def create_app(
     # --- FTP and weight: entered by hand, or taken from Intervals.icu or Garmin -------
 
     async def body_from(rider: dict, source: str) -> dict:
+        """Fresh FTP and weight (unknown ones left out) plus when they were fetched."""
         if source == "intervals":
             athlete = await call_intervals(intervals.athlete(intervals_account(rider)))
-            return body_settings(athlete)
-        if not store.garmin_connected(rider["id"]):
-            raise ApiError(409, "GARMIN_NOT_CONNECTED")
-        return await call_garmin(garmin.body, rider["id"])
+            values = body_settings(athlete)
+        else:
+            if not store.garmin_connected(rider["id"]):
+                raise ApiError(409, "GARMIN_NOT_CONNECTED")
+            values = await call_garmin(garmin.body, rider["id"])
+        return {**{k: v for k, v in values.items() if v}, "bodySyncedAt": int(time.time())}
 
     @app.put("/api/me/body-source")
     async def set_body_source(body: BodySource, rider: dict = Depends(current_rider)):
         changes = {"bodySource": body.source}
         if body.source != "manual":
-            changes.update({k: v for k, v in (await body_from(rider, body.source)).items() if v})
+            changes.update(await body_from(rider, body.source))
         return store.public(store.update(rider["id"], **changes))
 
     @app.post("/api/me/body/sync")
@@ -238,8 +242,7 @@ def create_app(
         source = rider.get("bodySource", "manual")
         if source == "manual":
             return store.public(rider)
-        values = {k: v for k, v in (await body_from(rider, source)).items() if v}
-        return store.public(store.update(rider["id"], **values))
+        return store.public(store.update(rider["id"], **(await body_from(rider, source))))
 
     @app.delete("/api/me/garmin")
     async def disconnect_garmin(rider: dict = Depends(current_rider)):
