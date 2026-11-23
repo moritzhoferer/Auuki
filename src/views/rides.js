@@ -21,13 +21,18 @@ function rideFacts(ride) {
     ].filter(Boolean).join(' · ');
 }
 
-// list rows: one small upload button per connected service (connecting is done in settings)
-const services = {intervals: 'Intervals.icu', garmin: 'Garmin Connect'};
-const shortNames = {intervals: 'Intervals', garmin: 'Garmin'};
+// Garmin Connect is the standard place for rides, so it comes first and offers to
+// connect; Intervals.icu shows up once it's connected
+const services = {garmin: 'Garmin Connect', intervals: 'Intervals.icu'};
+const shortNames = {garmin: 'Garmin', intervals: 'Intervals'};
 
 function uploadButtons(ride, rider) {
     if(ride.pending) return `<span class="status status--waiting">Waiting to sync</span>`;
-    return Object.keys(services).filter(service => rider?.[service]?.connected).map(service => {
+    return Object.keys(services).map(service => {
+        if(!rider?.[service]?.connected) {
+            return equals(service, 'garmin') ? `<button class="btn btn--ghost btn--small" data-action="screen" data-param="settings"
+                aria-label="Connect Garmin in settings to upload">Connect Garmin</button>` : '';
+        }
         const status = ride.uploads?.[service] ?? 'none';
         if(equals(status, 'done')) {
             return `<span class="status status--ok" data-tip="Uploaded to ${services[service]}">${icon('check')} ${shortNames[service]}</span>`;
@@ -140,8 +145,8 @@ class RideSummary extends UIView {
         this.innerHTML = `<h2 class="summary--name">${html(ride.name)}</h2>
             <dl class="facts">${facts.map(([k, v]) => `<div class="tile"><dt class="tile--label">${k}</dt><dd class="tile--value">${html(v)}</dd></div>`).join('')}</dl>
             <div class="summary--share">
-                ${uploadRow(ride, this.data.rider, 'intervals')}
                 ${uploadRow(ride, this.data.rider, 'garmin')}
+                ${uploadRow(ride, this.data.rider, 'intervals')}
                 ${ride.pending ? '' : shareRow({iconName: 'download', label: 'FIT file', status: 'For other apps',
                     action: `<button class="btn btn--ghost" data-action="ride:download" data-param="${html(ride.id)}"
                         aria-label="Download the FIT file">Download</button>`})}
