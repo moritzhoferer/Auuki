@@ -22,16 +22,18 @@ function OpenBikeControl() {
         [ControlMode.sim]: ControlMode.erg,
     };
 
-    function pushArrow(actions, seen, direction, mode) {
+    function pushArrow(actions, seen, direction, {mode, rideKind}) {
         if(seen[direction]) return;
         seen[direction] = true;
 
         const table = equals(direction, 'up') ? upForMode : downForMode;
-        const event = table[mode];
+        const event = mode === ControlMode.erg && rideKind === 'workout'
+            ? (direction === 'up' ? 'ui:intensity-inc' : 'ui:intensity-dec')
+            : table[mode];
         if(event) actions.push({event});
     }
 
-    // [Message], {mode, watchStatus} -> [{event, data?}]
+    // [Message], {mode, rideKind, watchStatus} -> [{event, data?}]
     function controlsFor(messages = [], context = {}) {
         const list = isArray(messages) ? messages : [];
         const mode = context.mode;
@@ -44,11 +46,11 @@ function OpenBikeControl() {
             if(!message || !equals(message.state, 'pressed')) continue;
 
             if(equals(message.action, 'shiftUp') || equals(message.action, 'increaseDifficulty')) {
-                pushArrow(actions, seen, 'up', mode);
+                pushArrow(actions, seen, 'up', context);
                 continue;
             }
             if(equals(message.action, 'shiftDown') || equals(message.action, 'decreaseDifficulty')) {
-                pushArrow(actions, seen, 'down', mode);
+                pushArrow(actions, seen, 'down', context);
                 continue;
             }
             if(equals(message.action, 'skipInterval') || equals(message.action, 'lap')) {
@@ -92,10 +94,7 @@ function OpenBikeControl() {
     }
 
     function onButtonState(messages, db) {
-        dispatchActions(controlsFor(messages, {
-            mode: db ? db.mode : '',
-            watchStatus: db ? db.watchStatus : '',
-        }));
+        dispatchActions(controlsFor(messages, db || {}));
     }
 
     xf.reg('ble:openBikeControl:buttonState', onButtonState);

@@ -34,6 +34,17 @@ describe('controlsFor arrows', () => {
         expect(eventsFor([pressed('decreaseDifficulty')], {mode})).toEqual([down]);
     });
 
+    test.each([
+        ['workout', 'erg', 'intensity'],
+        ['free', 'erg', 'power-target'],
+        ['workout', 'sim', 'slope-target'],
+        ['workout', 'resistance', 'resistance-target'],
+    ])('%s arrows in %s adjust %s', (rideKind, mode, target) => {
+        expect(eventsFor([pressed('increaseDifficulty'), pressed('shiftUp'),
+            pressed('decreaseDifficulty'), pressed('shiftDown')], {rideKind, mode}))
+            .toEqual([`ui:${target}-inc`, `ui:${target}-dec`]);
+    });
+
     test('a shift and the same difficulty arrow are one notch', () => {
         expect(eventsFor([
             pressed('shiftUp'),
