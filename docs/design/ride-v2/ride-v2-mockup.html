@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ride screen v2</title>
+<!-- Design mockup for the Auuki ride screen, v2. Static reference with mock data, not app code. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #0d0e10; --panel: #131417; --surface: #1b1d21; --raised: #262930; --line: #2a2d33;
+    --text: #f2f3f5; --muted: #a3a9b3; --dim: #4a4f58; --blue: #9ab4ff;
+    --in: #3fd37f; --near: #f6b73c; --out: #ff5d52;
+    /* radius system: surface = control + padding (concentric) */
+    --r-ctl: 6px; --pad: 10px;
+    --r-surf: calc(var(--r-ctl) + var(--pad));
+    --r-tile: calc(var(--r-ctl) + 8px);
+    color-scheme: dark;
+}
+:root[data-r="b"]   { --r-ctl: 8px;  --pad: 12px; }
+:root[data-r="now"] { --r-ctl: 10px; --pad: 14px; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.35 Inter, system-ui, sans-serif; }
+button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.cap { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+
+/* page chrome */
+.page { padding: 24px 32px 64px; display: flex; flex-direction: column; gap: 28px; }
+.intro { max-width: 980px; display: flex; flex-direction: column; gap: 10px; }
+.intro h1 { margin: 0; font-size: 22px; }
+.intro p, .intro li { margin: 0; color: var(--muted); }
+.intro ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.intro b { color: var(--text); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 5;
+    padding: 10px 0; background: var(--bg); }
+.toolbar .seg button { padding: 0 12px; }
+.rule { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+.rule-box { width: 64px; height: 44px; border: 2px solid var(--blue); border-radius: var(--r-surf); padding: var(--pad);
+    position: relative; }
+.rule-box i { display: block; width: 100%; height: 100%; min-height: 4px; background: var(--raised); border-radius: var(--r-ctl);
+    border: 1px solid var(--muted); }
+.rule code { color: var(--text); }
+.row { display: flex; flex-direction: column; gap: 10px; }
+.row h2 { margin: 0; font-size: 16px; }
+.row h2 span { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
+.shots { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.shot { display: flex; flex-direction: column; gap: 8px; }
+.shot-cap { font-size: 13px; color: var(--muted); } .shot-cap b { color: var(--text); }
+
+/* one screen */
+.frame { width: var(--w); height: var(--h); container-type: size; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.top { height: 48px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+.logo { width: 26px; height: 26px; flex: none; }
+.wname { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.spacer { flex: 1; }
+.sensors { display: flex; gap: 7px; flex: none; }
+.sensors svg { width: 16px; height: 16px; stroke: var(--dim); }
+.sensors svg.on { stroke: #e6e8eb; }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--blue); color: #17181b; font-weight: 700;
+    display: grid; place-items: center; font-size: 13px; flex: none; }
+
+.ride { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+.side { display: contents; }
+
+/* interval: flat, no box */
+.interval { display: flex; flex-direction: column; gap: 6px; padding: 0 2px; }
+.interval-head { display: flex; justify-content: space-between; align-items: baseline; }
+.interval-head .el { font-size: 13px; color: var(--muted); }
+.countdown { display: flex; align-items: baseline; gap: 8px; }
+.countdown .num { font-size: clamp(44px, 7cqh, 120px); line-height: 1; font-weight: 800; }
+.countdown .lbl { font-size: 15px; font-weight: 600; color: var(--muted); }
+.ending .countdown .num { color: var(--near); }
+.bar6 { height: 6px; border-radius: 3px; background: var(--raised); overflow: hidden; }
+.bar6 i { display: block; height: 100%; background: #d6d9de; }
+
+/* pacing: the one tinted box */
+.pacing { --c: var(--in); position: relative; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 10%, var(--surface));
+    border-radius: var(--r-surf); padding: var(--pad); display: flex; flex-direction: column; gap: 4px; }
+.pacing[data-k="near"] { --c: var(--near); }
+.pacing[data-k="out"]  { --c: var(--out); }
+.pacing[data-k="paused"] { --c: var(--dim); }
+.status { display: flex; justify-content: space-between; font-size: 13px; font-weight: 800; letter-spacing: .06em; color: var(--c); }
+.status .hint { font-weight: 600; letter-spacing: 0; }
+.power { display: flex; align-items: baseline; gap: 8px; }
+.power .num { font-size: clamp(80px, max(11cqh, 10cqw), 210px); line-height: .92; font-weight: 800; color: var(--c); }
+.power .unit { font-size: 14px; color: #c9cdd3; }
+.gauge { position: relative; height: 62px; margin-top: 2px; }
+.gauge .zones { position: absolute; left: 0; right: 0; top: 24px; height: 22px; display: flex; border-radius: var(--r-ctl); overflow: hidden; }
+.gauge .zones i:nth-child(1), .gauge .zones i:nth-child(5) { flex: 15; background: rgba(255,93,82,.38); }
+.gauge .zones i:nth-child(2), .gauge .zones i:nth-child(4) { flex: 15; background: rgba(246,183,60,.45); }
+.gauge .zones i:nth-child(3) { flex: 40; background: rgba(63,211,127,.7); }
+.gauge .tick { position: absolute; top: 18px; width: 2px; height: 34px; margin-left: -1px; background: var(--text); }
+.gauge .tv { position: absolute; top: 0; transform: translateX(-50%); font-size: 16px; font-weight: 700; }
+.gauge .needle { position: absolute; top: 19px; width: 6px; height: 32px; margin-left: -3px; border-radius: 3px; background: #fff;
+    box-shadow: 0 0 0 2px var(--panel); }
+.gauge .avg { position: absolute; top: 50px; width: 10px; height: 10px; margin-left: -5px; transform: rotate(45deg);
+    box-shadow: 0 0 0 2px var(--panel); }
+.stats { display: flex; gap: 18px; align-items: baseline; font-size: 13px; color: var(--muted); }
+.stats b { font-size: 20px; color: var(--text); margin-left: 4px; }
+.stats .d { display: inline-block; width: 9px; height: 9px; transform: rotate(45deg); margin-right: 6px; }
+
+/* the controls overlay: appears on hover / tap over the pacing box */
+.overlay { position: absolute; inset: 0; border-radius: calc(var(--r-surf) - 2px); background: rgba(12,13,15,.8);
+    backdrop-filter: blur(3px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    opacity: 0; pointer-events: none; transition: opacity .15s; }
+.pacing:hover .overlay, .pacing.show .overlay { opacity: 1; pointer-events: auto; }
+.overlay .btns { display: flex; gap: 10px; }
+.overlay button { width: 60px; height: 60px; border-radius: var(--r-ctl); background: var(--raised); display: grid; place-items: center; }
+.overlay button.primary { background: var(--text); color: #17181b; width: 76px; }
+.overlay button svg { width: 22px; height: 22px; }
+.overlay .note { font-size: 12px; color: var(--muted); }
+.overlay .paused { font-size: 13px; font-weight: 800; letter-spacing: .08em; color: var(--text); }
+
+/* fields from connected sensors */
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 8px; }
+.field { background: var(--surface); border-radius: var(--r-tile); padding: 8px 10px; min-width: 0; }
+.field .cap { font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 5px; align-items: center; }
+.field .cap svg { width: 12px; height: 12px; stroke: var(--muted); flex: none; }
+.field .v { font-size: 24px; font-weight: 700; line-height: 1.15; }
+.field .u { font-size: 12px; color: var(--muted); margin-left: 3px; font-weight: 500; }
+
+.next { background: var(--surface); border: 2px solid transparent; border-radius: var(--r-surf); padding: 8px var(--pad);
+    display: flex; align-items: baseline; gap: 10px; }
+.next .what { font-weight: 700; font-size: 16px; flex: 1; }
+.next .tw { font-weight: 700; font-size: 16px; color: var(--blue); }
+.ending .next { border-color: var(--near); }
+
+.profile { background: var(--surface); border-radius: var(--r-surf); padding: var(--pad); display: flex; flex-direction: column; gap: 4px;
+    flex: 1; min-height: 96px; max-height: 260px; }
+.profile svg { width: 100%; flex: 1; min-height: 58px; display: block; border-radius: var(--r-ctl); background: #16181b; }
+.profile .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+
+/* the bar that always stays: mode + target stepper in one row */
+.ctl { flex: none; display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--surface); }
+.seg { display: flex; background: var(--raised); border-radius: calc(var(--r-ctl) + 3px); padding: 3px; flex: none; }
+.seg button { height: 38px; min-width: 52px; border-radius: var(--r-ctl); background: transparent; color: var(--muted);
+    font-size: 12px; font-weight: 700; }
+.seg button[aria-pressed="true"] { background: #3a3e46; color: var(--text); }
+.stepper { flex: 1; display: flex; gap: 6px; min-width: 0; }
+.stepper button { width: 44px; height: 44px; border-radius: var(--r-ctl); background: var(--raised); font-size: 22px; flex: none; }
+.stepper .val { flex: 1; height: 44px; border-radius: var(--r-ctl); background: var(--text); color: #17181b; display: flex;
+    align-items: center; justify-content: center; gap: 4px; }
+.stepper .val b { font-size: 20px; font-weight: 800; } .stepper .val span { font-size: 13px; font-weight: 700; }
+
+/* wide: two columns, the pacing box grows with the screen */
+@container (min-width: 700px) {
+    .ride { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
+        grid-template-areas: "interval side" "pacing side"; gap: 12px; padding: 14px 16px; }
+    .interval { grid-area: interval; } .pacing { grid-area: pacing; justify-content: space-between; }
+    .side { grid-area: side; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+    .side .next { order: -2; } .side .fields { order: -1; }
+    .power .num { font-size: clamp(120px, 21cqh, 260px); }
+    .ctl { justify-content: center; } .stepper { max-width: 420px; }
+    .gauge { height: 70px; } .gauge .zones { height: 28px; } .gauge .tick { height: 40px; } .gauge .needle { height: 38px; }
+    .gauge .avg { top: 58px; } .gauge { height: 74px; }
+    .overlay button { width: 72px; height: 72px; } .overlay button.primary { width: 96px; }
+}
+@container (min-width: 1200px) {
+    .fields { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .field { padding: 10px 12px; } .field .v { font-size: 30px; }
+    .status { font-size: 16px; } .stats { font-size: 15px; } .stats b { font-size: 26px; }
+    .gauge .tv { font-size: 20px; }
+}
+</style>
+</head><body>
+<div class="page">
+  <div class="intro">
+    <h1>Ride screen v2: mockups</h1>
+    <p>Back to the density of the first ride-panel mockup, with the newer style rules. Designed for the <b>400 px split view</b> first; 800 and 1440 adapt from it. Mock data, Sweet spot 3×20′ at FTP 280.</p>
+    <ul>
+      <li><b>Controls overlay</b>: hover the coloured pacing box (or tap on a touch screen) for stop, previous, pause and next. B and D show it open; in the others, hover with the mouse to try it.</li>
+      <li><b>Always visible</b>: mode and the − target + stepper share one row at the bottom (44 px), so slope changes stay one tap away.</li>
+      <li><b>Fields come from connected sensors</b>: HR and cadence first, then SmO2, THb, core and skin temperature. Speed, distance, energy and climbed leave the ride view (they stay in the summary).</li>
+      <li><b>Flatter</b>: the interval countdown sits on the page, not in a box. The pacing box is the only tinted surface. The interval avg and in-range values sit inside it instead of in extra tiles.</li>
+    </ul>
+  </div>
+  <div class="toolbar">
+    <span class="cap">Radius</span>
+    <div class="seg" id="rsel">
+      <button data-r="a" aria-pressed="true">A · 6 + 10 = 16</button>
+      <button data-r="b" aria-pressed="false">B · 8 + 12 = 20</button>
+      <button data-r="now" aria-pressed="false">Today · 10 + 14 = 24</button>
+    </div>
+    <div class="rule"><div class="rule-box"><i></i></div><span><code>surface = control + padding</code>; tiles without buttons use control + 8</span></div>
+  </div>
+  <div id="rows"></div>
+</div>
+
+<script>
+const ftp = 280, tolPct = 7;
+const W = (f) => Math.round(ftp * f);
+const lo = W(.88), hi = W(.94), tol = Math.round(ftp * tolPct / 100);
+const dmin = lo - 3 * tol, dmax = hi + 3 * tol;
+const ZONES = [[dmin, 0], [lo - tol, 15], [lo, 30], [hi, 70], [hi + tol, 85], [dmax, 100]];
+const pos = (v) => {
+    if(v <= dmin) return 0; if(v >= dmax) return 100;
+    for(let i = 1; i < ZONES.length; i++) { const [w0, p0] = ZONES[i-1], [w1, p1] = ZONES[i]; if(v <= w1) return p0 + (v - w0) / (w1 - w0) * (p1 - p0); }
+    return 100;
+};
+const pad = (n) => String(n).padStart(2, '0');
+const clock = (s) => pad(Math.floor(s / 60)) + ':' + pad(Math.round(s % 60));
+const hms = (s) => Math.floor(s / 3600) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(Math.round(s % 60));
+const judge = (v) => {
+    if(v >= lo && v <= hi) return {k: 'in', label: '● IN RANGE', hint: 'hold it'};
+    const above = v > hi, d = above ? v - hi : lo - v, k = d <= tol ? 'near' : 'out';
+    return {k, label: (above ? '▲ ' : '▼ ') + (k === 'near' ? 'SLIGHTLY ' : 'TOO ') + (above ? 'HIGH' : 'LOW'), hint: above ? 'ease off' : 'push'};
+};
+const COLOR = {in: 'var(--in)', near: 'var(--near)', out: 'var(--out)'};
+
+const svgI = (d, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICON = {
+    trainer: '<circle cx="8" cy="9" r="5.5"/><circle cx="8" cy="9" r="1"/><path d="M8 9h7"/><rect x="15" y="6" width="6" height="6" rx="1.5"/><path d="M8 9L4 21M8 9l4 12M2 21h20M18 12v9"/>',
+    hr: '<path d="M12 20s-8-4.6-8-10.5A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 8 2.5C20 15.4 12 20 12 20z"/><path d="M7 12h2.5l1.5-2.5 2 5 1.5-2.5H17"/>',
+    pm: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+    cad: '<circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="1.5"/><path d="M10 10l6 9M14 19h5"/>',
+    smo2: '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',
+    core: '<path d="M10 14V5a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0z"/><path d="M12 9v8"/>',
+    ctrl: '<rect x="3" y="8" width="18" height="8" rx="4"/><circle cx="8" cy="12" r="1.2"/><circle cx="16" cy="12" r="1.2"/>',
+};
+const T = {
+    stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    prev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5l-9 7 9 7z"/><path d="M5 5v14"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M8 5v14M16 5v14"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>',
+    next: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5l9 7-9 7z"/><path d="M19 5v14"/></svg>',
+};
+const LOGO = `<svg class="logo" viewBox="0 0 26 26"><rect width="26" height="26" rx="7" fill="#f6b73c"/><path d="M7 20l6-14 6 14M9.5 15h7" stroke="#17181b" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+const FIELDS = {
+    hr:   {label: 'Heart rate', unit: 'bpm', icon: 'hr'},
+    cad:  {label: 'Cadence', unit: 'rpm', icon: 'cad'},
+    smo2: {label: 'SmO2', unit: '%', icon: 'smo2'},
+    thb:  {label: 'THb', unit: 'g/dl', icon: 'smo2'},
+    core: {label: 'Core temp', unit: '°C', icon: 'core'},
+    skin: {label: 'Skin temp', unit: '°C', icon: 'core'},
+};
+
+// minutes, low %FTP, high %FTP
+const plan = [[2.5,.5,.5],[2.5,.6,.6],[2.5,.7,.7],[2.5,.75,.75],[20,.88,.94],[5,.5,.5],[20,.88,.94],[5,.5,.5],[20,.88,.94],[10,.45,.45]];
+const total = plan.reduce((a, s) => a + s[0], 0) * 60;
+const curStart = 35 * 60, curDur = 20 * 60;
+
+function profileSvg(tEl, p3) {
+    let t = 0, out = '';
+    for(const g of plan) {
+        const s = t * 60, e = (t + g[0]) * 60; t += g[0];
+        const x = s / total * 1000, w = (e - s) / total * 1000 - 3, h = g[2] / 1.05 * 92, y = 100 - h;
+        const done = Math.max(0, Math.min(1, (tEl - s) / (e - s)));
+        out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="#343840"/>`;
+        if(done > 0) out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(w * done).toFixed(1)}" height="${h.toFixed(1)}" fill="#5f6878"/>`;
+    }
+    const pts = [];
+    for(let x = 0; x <= tEl; x += 10) {
+        let acc = 0, g = plan[plan.length - 1];
+        for(const seg of plan) { if(x < (acc + seg[0]) * 60) { g = seg; break; } acc += seg[0]; }
+        let f = (g[1] + g[2]) / 2 + .025 * Math.sin(x / 37) + .018 * Math.sin(x / 11 + 1.3) + .01 * Math.sin(x / 4.7);
+        if(tEl - x < 40) { const k = 1 - (tEl - x) / 40; f = f * (1 - k) + p3 * k; }
+        pts.push((x / total * 1000).toFixed(1) + ',' + (100 - f / 1.05 * 92).toFixed(1));
+    }
+    const px = (tEl / total * 1000).toFixed(1);
+    return `<svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">${out}
+        <polyline points="${pts.join(' ')}" fill="none" stroke="#9ab4ff" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+        <rect x="${px}" y="0" width="3" height="100" fill="#f2f3f5"/></svg>`;
+}
+
+function screen(s) {
+    const el = curDur - s.left, tEl = curStart + el;
+    const p3 = W(s.p3), avg = W(s.avg);
+    const st = s.paused ? {k: 'paused', label: 'PAUSED', hint: ''} : judge(p3);
+    const avgSt = judge(avg);
+    const ending = s.left <= 5;
+    const connected = new Set(s.sensors);
+    const icons = ['trainer','hr','pm','cad','smo2','core','ctrl'].map(k => svgI(ICON[k], connected.has(k) ? 'on' : '')).join('');
+    const fields = s.fields.map(k => `<div class="field"><div class="cap">${svgI(ICON[FIELDS[k].icon])}${FIELDS[k].label}</div>
+        <div><span class="v num">${s.vals[k]}</span><span class="u">${FIELDS[k].unit}</span></div></div>`).join('');
+    const overlay = `<div class="overlay">
+        ${s.paused ? '<span class="paused">PAUSED · 00:42</span>' : ''}
+        <div class="btns">
+          <button aria-label="Stop and finish">${T.stop}</button>
+          <button aria-label="Previous interval">${T.prev}</button>
+          <button class="primary" aria-label="${s.paused ? 'Resume' : 'Pause'}">${s.paused ? T.play : T.pause}</button>
+          <button aria-label="Next interval">${T.next}</button>
+        </div>
+        ${s.paused ? '' : '<span class="note">hides after 4 s</span>'}
+      </div>`;
+    return `<div class="frame" style="--w:${s.w}px;--h:${s.h}px">
+      <header class="top">${LOGO}<span class="wname">Sweet spot 3×20′</span><span class="spacer"></span>
+        <div class="sensors">${icons}</div><span class="avatar">A</span></header>
+      <div class="ride ${ending ? 'ending' : ''}">
+        <div class="interval">
+          <div class="interval-head"><span class="cap" style="font-size:12px;color:#c9cdd3">Effort 2 / 3</span><span class="el num">${clock(el)} / 20:00</span></div>
+          <div class="countdown"><span class="num">${clock(s.left)}</span><span class="lbl">left</span></div>
+          <div class="bar6"><i style="width:${(el / curDur * 100).toFixed(1)}%"></i></div>
+        </div>
+        <div class="pacing ${s.show ? 'show' : ''}" data-k="${st.k}">
+          <div class="status"><span>${st.label}</span><span class="hint">${st.hint}</span></div>
+          <div class="power"><span class="num">${p3}</span><span class="unit">W · 3 s</span></div>
+          <div class="gauge" role="img" aria-label="Target range with 3 s power and interval average">
+            <div class="zones"><i></i><i></i><i></i><i></i><i></i></div>
+            <span class="tick" style="left:${pos(lo)}%"></span><span class="tick" style="left:${pos(hi)}%"></span>
+            <span class="tv num" style="left:${pos(lo)}%">${lo}</span><span class="tv num" style="left:${pos(hi)}%">${hi}</span>
+            <span class="needle" style="left:${pos(p3)}%"></span>
+            <span class="avg" style="left:${pos(avg)}%;background:${COLOR[avgSt.k]}"></span>
+          </div>
+          <div class="stats"><span><i class="d" style="background:${COLOR[avgSt.k]}"></i>Interval avg<b class="num" style="color:${COLOR[avgSt.k]}">${avg}</b></span>
+            <span>In range<b class="num">${s.tir}%</b></span></div>
+          ${overlay}
+        </div>
+        <div class="side">
+          <div class="fields">${fields}</div>
+          <div class="next"><span class="cap">Up next</span><span class="what">Recovery · 5:00</span><span class="tw num">${W(.5)} W</span></div>
+          <div class="profile">${profileSvg(tEl, s.p3)}
+            <div class="ends"><span class="num">${hms(tEl)} elapsed</span><span class="num">${hms(total - tEl)} left</span></div></div>
+        </div>
+      </div>
+      <footer class="ctl">
+        <div class="seg"><button aria-pressed="false">ERG</button><button aria-pressed="false">RES</button><button aria-pressed="true">SLOPE</button></div>
+        <div class="stepper"><button aria-label="Decrease slope">−</button><div class="val"><b class="num">${s.slope}</b><span>%</span></div><button aria-label="Increase slope">+</button></div>
+      </footer>
+    </div>`;
+}
+
+const FEW = {sensors: ['trainer', 'hr'], fields: ['hr', 'cad']};
+const MANY = {sensors: ['trainer', 'hr', 'cad', 'smo2', 'core'], fields: ['hr', 'cad', 'smo2', 'thb', 'core', 'skin']};
+const vals = (hr, cad) => ({hr, cad, smo2: 54, thb: '12.1', core: '38.2', skin: '34.6'});
+const S = {
+    A: {name: 'A · In range', sub: 'trainer + HR', left: 462, p3: .915, avg: .897, tir: 88, slope: '1.0', vals: vals(152, 91), ...FEW},
+    B: {name: 'B · Too high, controls open', sub: 'hovered or tapped', left: 665, p3: 1.015, avg: .918, tir: 74, slope: '1.5', vals: vals(158, 96), show: true, ...FEW},
+    C: {name: 'C · Change in 4 s', sub: 'many sensors', left: 4, p3: .862, avg: .902, tir: 91, slope: '1.0', vals: vals(155, 88), ...MANY},
+    D: {name: 'D · Paused', sub: 'controls stay open', left: 462, p3: .915, avg: .897, tir: 88, slope: '1.0', vals: vals(131, 0), paused: true, show: true, ...FEW},
+};
+const ROWS = [
+    {title: '400 × 880', sub: 'split view next to video: the main target', w: 400, h: 880, list: ['A', 'B', 'C', 'D']},
+    {title: '800 × 700', sub: 'half a laptop screen', w: 800, h: 700, list: ['A', 'C']},
+    {title: '1440 × 900', sub: 'full screen, shown scaled to fit', w: 1440, h: 900, list: ['C', 'B']},
+];
+document.getElementById('rows').innerHTML = ROWS.map(r => `<section class="row"><h2>${r.title}<span>${r.sub}</span></h2>
+    <div class="shots">${r.list.map(k => `<div class="shot" data-w="${r.w}"><div class="shot-cap"><b>${S[k].name}</b> · ${S[k].sub}</div>
+      <div class="scale">${screen({...S[k], w: r.w, h: r.h})}</div></div>`).join('')}</div></section>`).join('');
+
+function fit() {
+    const avail = document.querySelector('.page').clientWidth - 64;
+    document.querySelectorAll('.shot').forEach($s => {
+        const w = +$s.dataset.w + 2;
+        $s.querySelector('.scale').style.zoom = Math.min(1, avail / w);
+    });
+}
+addEventListener('resize', fit); fit();
+
+document.getElementById('rsel').addEventListener('click', (e) => {
+    const $b = e.target.closest('button'); if(!$b) return;
+    document.documentElement.dataset.r = $b.dataset.r;
+    document.querySelectorAll('#rsel button').forEach(b => b.setAttribute('aria-pressed', b === $b));
+});
+document.documentElement.dataset.r = 'a';
+</script>
+</body></html>

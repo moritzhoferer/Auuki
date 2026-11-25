@@ -132,76 +132,81 @@
             <!-- ride -->
             <section class="screen screen--ride" data-screen="ride" hidden>
                 <h1 class="visually-hidden">Riding</h1>
-                <div class="ride-layout">
-                    <div class="ride-main">
-                        <!-- one card: interval countdown, 3 s power with its gauge, interval stats -->
-                        <div class="ride-focus">
-                            <interval-block class="ride-interval workout-only">
-                                <div class="rp-interval--label"></div>
-                                <div class="rp-interval--row">
-                                    <div class="rp-interval--countdown" aria-label="Time left in this interval">00:00</div>
-                                    <div class="rp-interval--progress" aria-hidden="true"><div class="rp-interval--progress-bar"></div></div>
-                                    <span class="rp-interval--elapsed"></span>
-                                </div>
-                            </interval-block>
-
-                            <div class="ride-elapsed free-only">
-                                <span class="tile--label">Elapsed</span>
-                                <elapsed-time class="ride-elapsed--value">00:00</elapsed-time>
-                            </div>
-
-                            <pacing-box class="ride-pacing" data-zone="none">
-                                <div class="rp-pacing--status" aria-live="polite"></div>
-                                <div class="rp-pacing--value"><span class="rp-pacing--power">0</span><span class="rp-pacing--unit">W · 3 s</span></div>
-                                <div class="rp-gauge workout-only" aria-hidden="true">
-                                    <div class="rp-gauge--labels"><span class="rp-gauge--low"></span><span class="rp-gauge--high"></span></div>
-                                    <div class="rp-gauge--track">
-                                        <div class="rp-gauge--zone rp-gauge--zone-out"></div>
-                                        <div class="rp-gauge--zone rp-gauge--zone-near"></div>
-                                        <div class="rp-gauge--zone rp-gauge--zone-in"></div>
-                                        <div class="rp-gauge--zone rp-gauge--zone-near"></div>
-                                        <div class="rp-gauge--zone rp-gauge--zone-out"></div>
-                                    </div>
-                                    <div class="rp-gauge--avg"></div>
-                                    <div class="rp-gauge--needle"></div>
-                                </div>
-                            </pacing-box>
-
-                            <!-- the diamond on the gauge is the interval average -->
-                            <div class="rp-stats workout-only">
-                                <span class="rp-stat"><i class="rp-legend--avg" aria-hidden="true"></i><span class="rp-stat--label">Interval avg</span>
-                                    <span class="rp-stat--value"><lap-power-status data-zone="none">--</lap-power-status> <span class="tile--unit">W</span></span></span>
-                                <span class="rp-stat"><span class="rp-stat--label">In range</span>
-                                    <span class="rp-stat--value"><time-in-range>--</time-in-range></span></span>
-                            </div>
+                <!-- every tile sits on the row grid; <ride-grid> places them with rideLayout() (models/layout.js) -->
+                <ride-grid class="ride-grid"
+                    primary="heartRate,cadence,smo2,thb,coreBodyTemperature,skinTemperature,virtualGear"
+                    secondary="powerAvg,kcal,distance,speedVirtual">
+                    <interval-block class="ride-interval workout-only" data-tile="interval">
+                        <div class="rp-interval--head">
+                            <span class="rp-interval--label"></span>
+                            <span class="rp-interval--elapsed"></span>
                         </div>
-
-                        <div class="tiles">
-                            <tile-row class="tiles--extra" fields="heartRate,cadence,speedVirtual,distance,smo2,thb,coreBodyTemperature,skinTemperature,virtualGear,powerAvg,kcal,ascent"></tile-row>
+                        <div class="rp-interval--row">
+                            <span class="rp-interval--countdown" aria-label="Time left in this interval">00:00</span>
+                            <span class="rp-interval--left">left</span>
                         </div>
-                    </div>
-
-                    <div class="ride-side">
-                        <next-interval class="ride-next workout-only">
-                            <span class="tile--label">Up next</span>
-                            <span class="rp-next--row">
-                                <span class="rp-next--what"><span class="rp-next--label"></span><span class="rp-next--duration"></span></span>
-                                <span class="rp-next--target"></span>
-                            </span>
+                        <div class="rp-interval--progress" aria-hidden="true"><div class="rp-interval--progress-bar"></div></div>
+                        <!-- narrow only: the next interval as a line -->
+                        <next-interval class="rp-interval--next">
+                            <span class="tile--label">Next</span>
+                            <span class="rp-next--what"><span class="rp-next--label"></span><span class="rp-next--duration"></span></span>
+                            <span class="rp-next--target"></span>
                         </next-interval>
+                    </interval-block>
 
-                        <ride-profile class="ride-profile workout-only">
-                            <svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
-                                <defs><clipPath id="rp-profile-clip"><rect class="rp-profile--clip-rect" x="0" y="0" width="0" height="100"/></clipPath></defs>
-                                <g class="rp-profile--todo"></g>
-                                <g class="rp-profile--done" clip-path="url(#rp-profile-clip)"></g>
-                                <polyline class="rp-profile--power" points="" vector-effect="non-scaling-stroke"/>
-                                <line class="rp-profile--now" x1="0" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/>
-                            </svg>
-                            <div class="rp-profile--times"><span class="rp-profile--elapsed"></span><span class="rp-profile--left"></span></div>
-                        </ride-profile>
+                    <div class="ride-elapsed free-only" data-tile="elapsed">
+                        <span class="tile--label">Elapsed</span>
+                        <elapsed-time class="ride-elapsed--value">00:00</elapsed-time>
                     </div>
-                </div>
+
+                    <pacing-box class="ride-pacing" data-tile="pacing" data-zone="none" data-step="m">
+                        <div class="rp-pacing--status" aria-live="polite"></div>
+                        <div class="rp-pacing--value"><span class="rp-pacing--power">0</span><span class="rp-pacing--unit">W · 3 s</span></div>
+                        <div class="rp-gauge workout-only" aria-hidden="true">
+                            <div class="rp-gauge--labels"><span class="rp-gauge--low"></span><span class="rp-gauge--high"></span></div>
+                            <div class="rp-gauge--track">
+                                <div class="rp-gauge--zone rp-gauge--zone-out"></div>
+                                <div class="rp-gauge--zone rp-gauge--zone-near"></div>
+                                <div class="rp-gauge--zone rp-gauge--zone-in"></div>
+                                <div class="rp-gauge--zone rp-gauge--zone-near"></div>
+                                <div class="rp-gauge--zone rp-gauge--zone-out"></div>
+                            </div>
+                            <div class="rp-gauge--avg"></div>
+                            <div class="rp-gauge--needle"></div>
+                        </div>
+                        <!-- the diamond on the gauge is the interval average -->
+                        <div class="rp-stats workout-only">
+                            <span class="rp-stat"><i class="rp-legend--avg" aria-hidden="true"></i><span class="rp-stat--label">Interval avg</span>
+                                <span class="rp-stat--value"><lap-power-status data-zone="none">--</lap-power-status> <span class="tile--unit">W</span></span></span>
+                            <span class="rp-stat"><span class="rp-stat--label">In range</span>
+                                <span class="rp-stat--value"><time-in-range>--</time-in-range></span></span>
+                        </div>
+                        <!-- stop, previous, play/pause, next: over the box on any input, hidden after 4 s
+                             while riding, always open while stopped or paused (views/ride.js) -->
+                        <div class="rp-controls">
+                            <ride-controls class="ride-controls"></ride-controls>
+                        </div>
+                    </pacing-box>
+
+                    <next-interval class="ride-next workout-only" data-tile="next">
+                        <span class="tile--label">Up next</span>
+                        <span class="rp-next--what"><span class="rp-next--label"></span><span class="rp-next--duration"></span></span>
+                        <span class="rp-next--target"></span>
+                    </next-interval>
+
+                    <!-- field tiles (.ride-fields) are added here by <ride-grid> -->
+
+                    <ride-profile class="ride-profile workout-only" data-tile="profile">
+                        <svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
+                            <defs><clipPath id="rp-profile-clip"><rect class="rp-profile--clip-rect" x="0" y="0" width="0" height="100"/></clipPath></defs>
+                            <g class="rp-profile--todo"></g>
+                            <g class="rp-profile--done" clip-path="url(#rp-profile-clip)"></g>
+                            <polyline class="rp-profile--power" points="" vector-effect="non-scaling-stroke"/>
+                            <line class="rp-profile--now" x1="0" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/>
+                        </svg>
+                        <div class="rp-profile--times"><span class="rp-profile--elapsed"></span><span class="rp-profile--left"></span></div>
+                    </ride-profile>
+                </ride-grid>
 
                 <footer class="ride-bar">
                     <div class="segmented segmented--small" role="group" aria-label="Trainer mode">
@@ -210,7 +215,6 @@
                         <button class="btn" data-action="mode-set" data-param="sim" data-pressed="mode:sim" aria-label="Slope mode (S)">SLOPE</button>
                     </div>
                     <target-stepper class="stepper"></target-stepper>
-                    <ride-controls class="ride-controls"></ride-controls>
                 </footer>
             </section>
 

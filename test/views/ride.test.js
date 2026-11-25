@@ -103,6 +103,19 @@ describe('<ride-controls>', () => {
         expect($('.ride-controls--skip').getAttribute('aria-label')).toBe('New lap (L)');
     });
 
+    test('previous and next also work while paused', async () => {
+        setDb({watchStatus: 'paused', rideKind: 'workout', intervalIndex: 0}); await frame();
+        expect($('.ride-controls--play').getAttribute('aria-label')).toBe('Resume (space)');
+        expect($('.ride-controls--skip').disabled).toBe(false);
+        expect($('.ride-controls--back').disabled).toBe(true);   // first interval
+        setDb({intervalIndex: 1}); await frame();
+        expect($('.ride-controls--back').disabled).toBe(false);
+
+        $('.ride-controls--skip').click();
+        $('.ride-controls--back').click();
+        expect(events).toEqual(['ui:watchLap', 'ui:watchBack']);
+    });
+
     test('clicks dispatch intents', async () => {
         setDb({watchStatus: 'started', rideKind: 'workout'}); await frame();
         $('.ride-controls--play').click();
