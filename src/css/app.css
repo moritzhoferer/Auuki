@@ -44,7 +44,7 @@
     --gap: 8px;          /* between tiles, both directions */
     --row: calc(var(--unit) + var(--gap));
     --pad: 16px;
-    --bar-h: 52px;
+    --bar-h: 48px;       /* app bar, at every width (PRINCIPLES.md §6) */
 
     color-scheme: dark;
 }
@@ -843,7 +843,7 @@ button.editor--td { cursor: pointer; }
 }
 
 @media (max-width: 600px) {
-    :root { --pad: 12px; --bar-h: 48px; }
+    :root { --pad: 12px; }
     h1 { font-size: 1.3rem; }
     .screen { gap: var(--gap); }
 
