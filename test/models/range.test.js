@@ -6,6 +6,7 @@ import { xf } from '../../src/functions.js';
 import { models } from '../../src/models/models.js';
 import { db } from '../../src/db.js';
 import {
+    clampIntensity, scaleWatts, scaleRange,
     stepRange, hasRange, toleranceWatts, rangeStatus, gaugePosition, TimeInRange,
 } from '../../src/models/range.js';
 
@@ -152,5 +153,23 @@ describe('db', () => {
         xf.dispatch('ui:power-target-range-set', {low: 265, high: 275});
         xf.dispatch('watch:stopped');
         expect(db.powerTargetRange).toEqual({low: 0, high: 0});
+    });
+});
+
+describe('workout intensity', () => {
+    test('1 % steps between 50 and 150 %', () => {
+        expect(clampIntensity(95)).toBe(95);
+        expect(clampIntensity(94.6)).toBe(95);
+        expect(clampIntensity(30)).toBe(50);
+        expect(clampIntensity(180)).toBe(150);
+        expect(clampIntensity('x')).toBe(100);
+    });
+
+    test('scales watts and ranges', () => {
+        expect(scaleWatts(270, 100)).toBe(270);
+        expect(scaleWatts(270, 95)).toBe(257);
+        expect(scaleWatts(270, 105)).toBe(284);
+        expect(scaleRange({low: 265, high: 275}, 95)).toEqual({low: 252, high: 261});
+        expect(scaleRange({low: 0, high: 0}, 95)).toEqual({low: 0, high: 0});
     });
 });

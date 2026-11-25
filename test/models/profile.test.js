@@ -64,5 +64,8 @@ describe('labels and targets', () => {
         expect(intervalTarget(workout.intervals[2], ftp)).toBe('286–304 W');
         expect(intervalTarget(workout.intervals[3], ftp)).toBe('2.0 %');
         expect(intervalTarget({}, ftp)).toBe('');
+        // workout intensity scales the shown target, slope stays as written
+        expect(intervalTarget(workout.intervals[1], ftp, 95)).toBe('252–261 W');
+        expect(intervalTarget(workout.intervals[3], ftp, 95)).toBe('2.0 %');
     });
 });

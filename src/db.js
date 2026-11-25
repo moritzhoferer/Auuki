@@ -59,6 +59,7 @@ let db = {
     slopeTarget: models.slopeTarget.default,
     cadenceTarget: models.cadenceTarget.default,
     powerTargetRange: {low: 0, high: 0},
+    intensity: 100, // workout intensity in %, scales every workout power target (watch.js)
     powerTolerance: models.powerTolerance.default,
     timeInRange: 0,
 

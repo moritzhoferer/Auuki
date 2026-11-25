@@ -205,7 +205,7 @@ customElements.define('time-in-range', TimeInRangeValue);
 //
 class NextInterval extends RideView {
     props() {
-        return ['workout', 'intervalIndex', 'lapTime', 'watchStatus', 'ftp'];
+        return ['workout', 'intervalIndex', 'lapTime', 'watchStatus', 'ftp', 'intensity'];
     }
     config() {
         this.$label    = this.querySelector('.rp-next--label');
@@ -213,7 +213,7 @@ class NextInterval extends RideView {
         this.$target   = this.querySelector('.rp-next--target');
     }
     render() {
-        const { workout, intervalIndex = 0, ftp = 0 } = this.data;
+        const { workout, intervalIndex = 0, ftp = 0, intensity = 100 } = this.data;
         const next = workout?.intervals?.[intervalIndex + 1];
 
         if(!exists(next)) {
@@ -223,7 +223,7 @@ class NextInterval extends RideView {
         } else {
             this.$label.textContent    = stepLabel(next.steps?.[0]);
             this.$duration.textContent = clock(next.duration ?? 0);
-            this.$target.textContent   = intervalTarget(next, ftp);
+            this.$target.textContent   = intervalTarget(next, ftp, intensity);
         }
         this.classList.toggle('final', this.isFinalSeconds());
     }
@@ -353,10 +353,12 @@ const stepperModes = {
     resistance: {prop: 'resistanceTarget', effect: 'resistance-target', unit: '',  label: 'Resistance', name: 'resistance',        format: (x) => Math.round(x)},
     sim:        {prop: 'slopeTarget',      effect: 'slope-target',      unit: '%', label: 'Slope', name: 'slope',             format: (x) => Number(x).toFixed(1)},
 };
+// ERG in a workout: the workout sets the watts, − and + scale all of them
+const intensityMode = {prop: 'intensity', effect: 'intensity', unit: '%', label: 'Intensity', name: 'workout intensity', format: (x) => Math.round(x)};
 
 class TargetStepper extends RideView {
     props() {
-        return ['mode', 'powerTarget', 'resistanceTarget', 'slopeTarget'];
+        return ['mode', 'powerTarget', 'resistanceTarget', 'slopeTarget', 'intensity', 'rideKind'];
     }
     config() {
         this.innerHTML = `<button class="btn btn--icon stepper--dec">${icon('minus')}</button>
@@ -371,7 +373,9 @@ class TargetStepper extends RideView {
         this.$inc.addEventListener('click', () => this.step('inc'), this.signal);
     }
     current() {
-        return stepperModes[this.data.mode] ?? stepperModes.erg;
+        const mode = stepperModes[this.data.mode] ?? stepperModes.erg;
+        if(equals(mode, stepperModes.erg) && equals(this.data.rideKind, 'workout')) return intensityMode;
+        return mode;
     }
     step(direction) {
         xf.dispatch(`ui:${this.current().effect}-${direction}`);
