@@ -450,7 +450,7 @@ function RowView(args = {}) {
         abortController = new AbortController();
         signal = { signal: abortController.signal };
 
-        $select.addEventListener(`pointerup`, onSelect.bind(this), signal);
+        $select.addEventListener(`click`, onSelect.bind(this), signal);
         $duration.addEventListener(`input`, onDuration.bind(this), signal);
         $power.addEventListener(`input`, onPower.bind(this), signal);
         $ramp.addEventListener(`input`, onRamp.bind(this), signal);
@@ -510,7 +510,7 @@ function RowView(args = {}) {
     }
     function template(data) {
         return `<div class="editor--row">
-            <div class="editor--td select">
+            <button type="button" class="editor--td select" aria-label="Select this interval">
                 <svg class="editor--radio editor--radio-off selected"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24">
@@ -525,13 +525,13 @@ function RowView(args = {}) {
                             18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
                     <circle class="circle" cx="12" cy="12" r="5" fill="#none"/>
                 </svg>
-            </div>
+            </button>
             <div class="editor--td editor--static time">${data.time}</div>
-            <input class="editor--td duration" type="text" value="${data.duration}" />
-            <input class="editor--td power zone" type="text" value="${data.power}" />
-            <input class="editor--td ramp zone" type="text" value="${data.ramp}" />
-            <input class="editor--td slope" type="text" value="${data.slope}" />
-            <input class="editor--td cadence" type="text" value="${data.cadence}" />
+            <input class="editor--td duration" type="text" aria-label="Duration" value="${data.duration}" />
+            <input class="editor--td power zone" type="text" aria-label="Power, % of FTP" value="${data.power}" />
+            <input class="editor--td ramp zone" type="text" aria-label="Ramp to, % of FTP" value="${data.ramp}" />
+            <input class="editor--td slope" type="text" aria-label="Slope, %" value="${data.slope}" />
+            <input class="editor--td cadence" type="text" aria-label="Cadence, rpm" value="${data.cadence}" />
         </div>`;
     }
     function build() {
@@ -586,10 +586,10 @@ class WorkoutEditor extends HTMLElement {
         this.$author.addEventListener(`input`, this.onAuthor.bind(this), this.signal);
         this.$category.addEventListener(`input`, this.onCategory.bind(this), this.signal);
         this.$description.addEventListener(`input`, this.onDescription.bind(this), this.signal);
-        this.$add.addEventListener(`pointerup`, this.onAdd.bind(this), this.signal);
-        this.$remove.addEventListener(`pointerup`, this.onRemove.bind(this), this.signal);
-        this.$save.addEventListener(`pointerup`, this.onSave.bind(this), this.signal);
-        this.$download.addEventListener(`pointerup`, this.onDownload.bind(this), this.signal);
+        this.$add.addEventListener(`click`, this.onAdd.bind(this), this.signal);
+        this.$remove.addEventListener(`click`, this.onRemove.bind(this), this.signal);
+        this.$save.addEventListener(`click`, this.onSave.bind(this), this.signal);
+        this.$download.addEventListener(`click`, this.onDownload.bind(this), this.signal);
 
         this.$name.value = this.editor.getName();
         this.$author.value = this.editor.getAuthor();

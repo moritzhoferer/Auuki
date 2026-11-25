@@ -1,0 +1,20 @@
+# docker compose up -d --build   ->  http://localhost:8080
+#
+# localhost is a secure context, so Web Bluetooth works there without TLS.
+# Other devices on the home network need https for Web Bluetooth: put a TLS proxy
+# in front and set COOKIE_SECURE=true. AUUKI_BIND=0.0.0.0 opens the port to the LAN.
+services:
+  auuki:
+    build: .
+    image: auuki-home
+    restart: unless-stopped
+    ports:
+      - "${AUUKI_BIND:-127.0.0.1}:8080:8080"
+    env_file:
+      - path: server/.env
+        required: false
+    volumes:
+      - auuki-data:/data          # riders, their Garmin tokens and rides
+
+volumes:
+  auuki-data:

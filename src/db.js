@@ -4,6 +4,10 @@ import { Sound } from './sound.js';
 import { idb } from './storage/idb.js';
 import { ControlMode, } from './ble/enums.js';
 import { TimerStatus, } from './activity/enums.js';
+import { rangeStatus, hasRange, TimeInRange, } from './models/range.js';
+import { sensors, emptyStatus, } from './models/sensors.js';
+
+const timeInRange = TimeInRange();
 
 // import { trainerMock } from './simulation-scripts.js';
 
@@ -54,31 +58,26 @@ let db = {
     resistanceTarget: models.resistanceTarget.default,
     slopeTarget: models.slopeTarget.default,
     cadenceTarget: models.cadenceTarget.default,
+    powerTargetRange: {low: 0, high: 0},
+    powerTolerance: models.powerTolerance.default,
+    timeInRange: 0,
 
     mode: models.mode.default,
-    page: models.page.default,
-    lock: false,
 
     // Profile
     ftp: models.ftp.default,
     weight: models.weight.default,
-    theme: models.theme.default,
-    dockMode: models.dockMode.default,
     measurement: models.measurement.default,
     volume: models.volume.default,
 
     // UI options
     powerSmoothing: 0,
-    dataTileSwitch: models.dataTileSwitch.default,
-    auth: ':login',
 
     // Workouts
     workouts: [],
     workout: models.workout.default,
     workoutTextEvent: "",
 
-    // Activities
-    activity: models.activity.default,
 
     // Recording
     records: [],
@@ -101,13 +100,23 @@ let db = {
     // Course
     courseIndex: 0,
 
-    // Request ANT+ Device
-    antSearchList: [],
-    antDeviceId: {},
+    // App
+    screen: 'loading',   // loading | riders | setup | start | library | ready | ride | summary | settings | editor
+    sheet: '',           // '' | sensors | finish
+    rideKind: 'workout', // workout | free
+    notice: '',
 
-    // Services
-    services: {strava: false, intervals: false, trainingPeaks: false},
-    account: {identifier: ''},
+    // Riders (server)
+    rider: null,
+    riders: [],
+    rides: [],
+    ride: null,          // the ride just saved, for the summary
+    planned: [],
+    plannedStatus: 'idle', // idle | loading | ok | error
+
+    // Sensors
+    sensors: emptyStatus(),
+    antDriver: 'off',
 };
 
 
@@ -173,10 +182,6 @@ xf.reg(models.sources.prop, (sources, db) => {
     console.log(db.sources);
 });
 
-xf.reg(models.dockMode.prop, (value, db) => {
-    db.dockMode = models.dockMode.set(value);
-    models.dockMode.backup(db.dockMode);
-});
 
 xf.reg('power1s', (power, db) => {
     db.power1s = power;
@@ -191,6 +196,23 @@ xf.reg('power1s', (power, db) => {
 
 xf.reg('power3s', (power, db) => {
     db.power3s = power;
+
+    if(equals(db.watchStatus, TimerStatus.started) && hasRange(db.powerTargetRange)) {
+        const isInside = equals(rangeStatus(power, db.powerTargetRange).zone, 'in');
+        db.timeInRange = timeInRange.add(isInside);
+    }
+});
+
+// time in range is per interval
+xf.reg('watch:lap', (_, db) => {
+    db.timeInRange = timeInRange.reset();
+});
+xf.reg('watch:stopped', (_, db) => {
+    db.timeInRange = timeInRange.reset();
+    db.powerTargetRange = {low: 0, high: 0};
+});
+xf.reg('workout:done', (_, db) => {
+    db.powerTargetRange = {low: 0, high: 0};
 });
 
 xf.reg('powerInZone', (powerInZone, db) => {
@@ -215,16 +237,47 @@ xf.reg('distance', (distance, db) => {
     };
 });
 
-// Pages
-xf.reg('ui:page-set', (page, db) => {
-    db.page = models.page.set(page);
+// Screens and sheets
+xf.reg('ui:screen', (screen, db) => {
+    db.sheet = '';
+    db.screen = screen;
+});
+xf.reg('ui:sheet', (sheet, db) => {
+    db.sheet = sheet ?? '';
+});
+xf.reg('ui:notice', (notice, db) => {
+    db.notice = notice ?? '';
 });
 
-// Modes
-xf.reg('ui:mode-set', (mode, db) => {
-    if(db.lock) return;
+// Sensors: one status entry per sensor type, from the BLE and ANT+ device events
+function setSensor(db, id, changes) {
+    db.sensors = {...db.sensors, [id]: {...db.sensors[id], ...changes}};
+}
+for(const sensor of sensors) {
+    for(const source of [sensor.ble, sensor.ant].filter(Boolean)) {
+        const via = source.startsWith('ant') ? 'ANT+' : 'Bluetooth';
+        xf.reg(`${source}:connecting`,   (_, db) => setSensor(db, sensor.id, {status: 'connecting', via}));
+        xf.reg(`${source}:connected`,    (_, db) => setSensor(db, sensor.id, {status: 'on', via}));
+        xf.reg(`${source}:disconnected`, (_, db) => {
+            if(db.sensors[sensor.id].via !== via && db.sensors[sensor.id].status === 'on') return;
+            setSensor(db, sensor.id, {status: 'off', name: '', battery: -1, via: ''});
+        });
+        xf.reg(`${source}:name`, (name, db) => {
+            if(name && name !== '--') setSensor(db, sensor.id, {name});
+        });
+        xf.reg(`${source}:batteryLevel`, (battery, db) => setSensor(db, sensor.id, {battery}));
+    }
+}
+xf.reg('ant:driver:connecting', (_, db) => db.antDriver = 'connecting');
+xf.reg('ant:driver:connected',  (_, db) => db.antDriver = 'on');
+xf.reg('ant:driver:closed',     (_, db) => db.antDriver = 'off');
+xf.reg('ant:driver:disable',    (_, db) => db.antDriver = 'off');
 
+// Modes
+// the mode is the user's choice, workouts only set targets
+xf.reg('ui:mode-set', (mode, db) => {
     db.mode = models.mode.set(mode);
+    models.mode.backup(db.mode);
 
     if(equals(mode, ControlMode.erg)) {
         xf.dispatch(`ui:power-target-set`, db.powerTarget);
@@ -237,20 +290,7 @@ xf.reg('ui:mode-set', (mode, db) => {
     }
 });
 
-xf.reg('ui:lock-set', (_, db) => {
-    db.lock = !db.lock;
-});
 
-xf.reg('ui:lock-toggle', (_, db) => {
-    db.lock = !db.lock;
-});
-
-
-// UI options
-xf.reg('ui:data-tile-switch-set', (index, db) => {
-    db.dataTileSwitch = index;
-    models.dataTileSwitch.backup(db.dataTileSwitch);
-});
 
 // Targets
 xf.reg('ui:power-target-set', (powerTarget, db) => {
@@ -287,22 +327,19 @@ xf.reg(`ui:slope-target-dec`, (_, db) => {
 });
 
 // Profile
+// ftp and weight belong to the rider (server), see app.js
 xf.reg('ui:ftp-set', (ftp, db) => {
     db.ftp = models.ftp.set(ftp);
-    models.ftp.backup(db.ftp);
+});
+xf.reg('ui:power-tolerance-set', (tolerance, db) => {
+    db.powerTolerance = models.powerTolerance.set(tolerance);
+    models.powerTolerance.backup(db.powerTolerance);
+});
+xf.reg('ui:power-target-range-set', (range, db) => {
+    db.powerTargetRange = {low: range?.low ?? 0, high: range?.high ?? 0};
 });
 xf.reg('ui:weight-set', (weight, db) => {
     db.weight = models.weight.set(weight);
-    models.weight.backup(db.weight);
-});
-xf.reg('ui:theme-switch', (_, db) => {
-    db.theme = models.theme.switch(db.theme);
-    models.theme.backup(db.theme);
-});
-
-xf.reg('ui:dock-mode-switch', (_, db) => {
-    db.theme = models.dockMode.switch(db.dockMode);
-    models.dockMode.backup(db.dockMode);
 });
 xf.reg('ui:measurement-switch', (_, db) => {
     db.measurement = models.measurement.switch(db.measurement);
@@ -330,7 +367,7 @@ xf.reg('ui:workout:select', (id, db) => {
     db.workout = models.workouts.get(db.workouts, id);
 });
 xf.reg('ui:planned:select', (id, db) => {
-    db.workout = models.planned.get(id);
+    db.workout = db.planned.find(w => w.id === id) ?? db.workout;
 });
 xf.reg('ui:workout:remove', (id, db) => {
     db.workouts = models.workouts.remove(db.workouts, id);
@@ -343,26 +380,6 @@ xf.reg('ui:workout:upload', async function(files, db) {
         xf.dispatch('db:workouts', db);
     }
 
-});
-xf.reg('watch:stopped', (_, db) => {
-    try {
-        models.activity.createFromCurrent(db);
-        xf.dispatch('activity:save:success');
-    } catch (err) {
-        console.error(`Error on activity save: `, err);
-        xf.dispatch('activity:save:fail');
-    }
-
-});
-xf.reg('activity:save:success', (e, db) => {
-    models.session.reset(db);
-});
-xf.sub('ui:activity:upload:by:id', (id) => {
-    models.activity.upload(id);
-});
-// download the current activity as a .fit file
-xf.reg('ui:activity:save', (_, db) => {
-    xf.dispatch(`ui:page-set`, 'workouts');
 });
 
 xf.reg('course:index', (index, db) => {
@@ -384,57 +401,22 @@ xf.reg('lock:release', (e, db) => {
     models.session.backup(db);
 });
 
-// Request ANT+ Device
-xf.reg('ui:ant:request:selected', (x, db) => {
-    db.antDeviceId = db.antSearchList.filter(d => {
-        return d.deviceNumber === parseInt(x);
-    })[0];
-});
-function includesDevice(devices, id) {
-    return devices.filter(d => d.deviceNumber === id.deviceNumber).length > 0;
-}
-xf.reg(`ant:search:device-found`, (x, db) => {
-    if(includesDevice(db.antSearchList, x)) return;
-    db.antSearchList.push(x);
-    db.antSearchList = db.antSearchList;
-});
-xf.reg(`ant:search:stopped`, (x, db) => {
-    db.antSearchList = [];
-});
-
-xf.reg('auth', (x, db) => {
-    // TODO: remove?
-});
-
-xf.reg('services', (x, db) => {
-    db.services = Object.assign(db.services, x);
-});
-xf.reg('account', (x, db) => {
-    db.account = {identifier: x?.identifier ?? ''};
-});
 
 
 //
 xf.reg('app:start', async function(_, db) {
 
-    db.dockMode = models.dockMode.set(models.dockMode.restore());
-    models.dockMode.apply(db.dockMode);
-
-    db.ftp = models.ftp.set(models.ftp.restore());
-    db.weight = models.weight.set(models.weight.restore());
-    db.theme = models.theme.set(models.theme.restore());
+    db.powerTolerance = models.powerTolerance.set(models.powerTolerance.restore());
+    db.mode = models.mode.set(models.mode.restore());
     db.measurement = models.measurement.set(models.measurement.restore());
     db.volume = models.volume.set(models.volume.restore());
-    db.dataTileSwitch = models.dataTileSwitch.set(models.dataTileSwitch.restore()),
 
     db.sources = models.sources.set(models.sources.restore());
 
     // IndexedDB Schema Version 3
     await idb.start('store', 3, ['session', 'workouts', 'activity']);
     db.workouts = await models.workouts.restore();
-    db.activity = await models.activity.restore();
     db.workout = models.workout.restore(db);
-    models.planned.restore();
 
     await models.session.restore(db);
     xf.dispatch('workout:restore');
@@ -451,30 +433,14 @@ xf.reg('app:start', async function(_, db) {
     const sound = Sound({volume: db.volume});
     sound.start();
 
-    models.api.start();
-    // TODO: remove
-    // xf.dispatch(`ui:page-set`, 'workouts');
-
-    // TRAINER MOCK
-    // trainerMock.init();
+    // riders, planned workouts and rides: app.js
+    xf.dispatch('app:ready');
 });
 
 function start () {
     console.log('start db');
     xf.dispatch('db:start');
 
-    // UI test
-    // setInterval(function() {
-    //     xf.dispatch('watch:elapsed', 1);
-    //     xf.dispatch('power', 180);
-    //     xf.dispatch('cadence', 80);
-    //     xf.dispatch('heartRate', 140 + (Math.random() * 10));
-    //     xf.dispatch('smo2', 71.17); // + (Math.random() * 10));
-    //     xf.dispatch('thb', 11.14); // + (Math.random() / 2));
-    //     xf.dispatch('coreBodyTemperature', 38.12);
-    //     xf.dispatch('skinTemperature', 38.47);
-    // }, 1000);
-    // end UI test
 }
 
 start();

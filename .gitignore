@@ -14,3 +14,14 @@ env.js
 .env.*
 .parcel-cache/
 
+
+# home: self-hosted server
+server/.env
+server/data/
+server/.venv/
+__pycache__/
+.pytest_cache/
+!server/.env.example
+
+# home: local Claude Code tooling
+.claude/

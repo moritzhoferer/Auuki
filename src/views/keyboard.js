@@ -9,6 +9,7 @@ function Keyboard() {
     const isKeyR     = (code) => code === 'KeyR';
     const isKeyS     = (code) => code === 'KeyS';
     const isKeyL     = (code) => code === 'KeyL';
+    const isKeyB     = (code) => code === 'KeyB';
     const isKeySpace = (code) => code === 'Space';
 
     window.addEventListener('keydown', onKeydown.bind(this));
@@ -23,6 +24,13 @@ function Keyboard() {
             e.shiftKey ||
             e.altKey ||
             exists(e.target.form)) {
+            return;
+        }
+        // shortcuts are for the ride screen; a focused control keeps its own keys
+        if(document.body.dataset.screen !== 'ride' ||
+           document.querySelector('dialog[open]') ||
+           e.target.closest?.('input, select, textarea, [contenteditable]') ||
+           (isKeySpace(code) && e.target.closest?.('button, a'))) {
             return;
         }
 
@@ -45,6 +53,9 @@ function Keyboard() {
         }
         if(isKeyL(code)) {
             xf.dispatch('key:l');
+        }
+        if(isKeyB(code)) {
+            xf.dispatch('key:b');
         }
         if(isKeySpace(code)) {
             e.preventDefault();
@@ -98,15 +109,14 @@ function KeyboardControls() {
 
     // Watch
     xf.sub('key:space', e => {
-        if(watchStatus === 'paused' || watchStatus === 'stopped') {
-            xf.dispatch('ui:watchStart');
-            xf.dispatch('ui:workoutStart');
-        } else {
-            xf.dispatch('ui:watchPause');
-        }
+        xf.dispatch('ui:ride:toggle');
     });
     xf.sub('key:l', e => {
         xf.dispatch('ui:watchLap');
+    });
+    xf.sub('key:b', e => {
+        if(document.body.dataset.rideKind === 'free') return;
+        xf.dispatch('ui:watchBack');
     });
 }
 

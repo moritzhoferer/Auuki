@@ -2,13 +2,12 @@ import { xf, exists, existance, empty, equals, mavg, avg, max,
          first, second, last, clamp, toFixed, isArray,
          isString, isObject } from '../functions.js';
 
-import { inRange, dateToDashString, getStartEndOfWeek, isoDate, isToday, timeDiff, pad } from '../utils.js';
+import { inRange, dateToDashString, timeDiff, pad } from '../utils.js';
 
 import { LocalStorageItem } from '../storage/local-storage.js';
 import { idb } from '../storage/idb.js';
 import { uuid } from '../storage/uuid.js';
 
-import API from './api.js';
 import { workouts as workoutsFile }  from '../workouts/workouts.js';
 import { zwo } from '../workouts/zwo.js';
 import { fileHandler } from '../file.js';
@@ -305,19 +304,19 @@ class CadenceTarget extends Target {
 }
 
 class Mode extends Model {
-    postInit(args) {
+    postInit(args = {}) {
+        const self = this;
         this.state = this.defaultValue();
         this.values = Object.values(ControlMode);
+        if(exists(args.storage)) {
+            const storageModel = {
+                key: self.prop,
+                fallback: self.defaultValue(),
+            };
+            self.storage = new args.storage(storageModel);
+        }
     }
     defaultValue() { return ControlMode.erg; }
-    defaultIsValid(value) { return this.values.includes(value); }
-}
-
-class Page extends Model {
-    postInit(args) {
-        this.values = ['settings', 'home', 'workouts'];
-    }
-    defaultValue() { return 'home'; }
     defaultIsValid(value) { return this.values.includes(value); }
 }
 
@@ -444,67 +443,23 @@ class Weight extends Model {
     }
 }
 
-class Theme extends Model {
+// pacing tolerance around the target range, in % of FTP
+class PowerTolerance extends Model {
     postInit(args = {}) {
         const self = this;
         const storageModel = {
             key: self.prop,
             fallback: self.defaultValue(),
+            parse: parseInt,
         };
+        self.min = existance(args.min, 1);
+        self.max = existance(args.max, 30);
         self.storage = new args.storage(storageModel);
-        self.values = ['dark', 'light'];
     }
-    defaultValue() { return 'dark'; }
-    defaultIsValid(value) { return this.values.includes(value); }
-    switch(theme) {
+    defaultValue() { return 7; }
+    defaultIsValid(value) {
         const self = this;
-        if(equals(theme, first(self.values))) return second(self.values);
-        if(equals(theme, second(self.values))) return first(self.values);
-        self.onInvalid(theme);
-        return self.default;
-    }
-}
-
-class DockMode extends Model {
-    postInit(args = {}) {
-        const self = this;
-        const storageModel = {
-            key: self.prop,
-            fallback: self.defaultValue(),
-            parse: (x) => x === 'true',
-        };
-        self.storage = new args.storage(storageModel);
-        self.values = [true, false];
-    }
-    defaultValue() { return false; }
-    switch(state) {
-        return !state;
-    }
-    apply(state) {
-        const self = this;
-        if(state && window.innerHeight > 200) {
-            self.resize();
-        }
-    }
-    calcSize() {
-        const width = window.screen.availWidth;
-        const height = 150;
-        const top = window.screen.availHeight - height;
-        return {width: width, height: height, top: top};
-    }
-    resize() {
-        const self = this;
-        let {width, height, top} = self.calcSize();
-        window.resizeTo(width, height);
-        window.moveTo(0, top);
-    }
-    open() {
-        const href = document.location.href;
-        let self = this;
-        let { width, height, top } = self.calcSize();
-
-        window.open(`${href}`, '', `width=${width},height=${height},left=0,top=${top}`);
-        window.close();
+        return Number.isInteger(value) && inRange(self.min, self.max, value);
     }
 }
 
@@ -529,137 +484,6 @@ class Measurement extends Model {
     }
 }
 
-class DataTileSwitch extends Model {
-    postInit(args = {}) {
-        const self = this;
-        const storageModel = {
-            key: self.prop,
-            fallback: self.defaultValue(),
-        };
-        self.storage = new args.storage(storageModel);
-        this.values = [0, 1, 2];
-    }
-    defaultValue() { return 0; }
-    defaultIsValid(value) { return this.values.includes(value); }
-    defaultParse(value) {
-        return parseInt(value);
-    }
-}
-
-class Activity extends Model {
-    // var activity = {
-    //         id: UUID,
-    //         blob: Blob,
-    //         summary: {
-    //             timestamp: Int,
-    //             duration: Int,
-    //             name: String,
-    //             status: {
-    //                 strava: String,
-    //                 intervals: String,
-    //                 trainingPeaks: String,
-    //             }
-    //         },
-    // };
-
-    name = 'activity';
-    postInit(args) {
-        this.api = args.api;
-        this.capacity = 7;
-    }
-    defaultValue() { return []; }
-    createFromCurrent(db) {
-        const id = uuid();
-        const blob = fileHandler.toBlob(this.encode(db));
-        const name = db.workout?.meta?.name ?? 'Powered by Auuki workout';
-
-        const summary = {
-            id,
-            timestamp: Date.now(),
-            name,
-            duration: db.elapsed ?? 0,
-            status: {strava: 'none', intervals: 'none', trainingPeaks: 'none'},
-        };
-        const record = {
-            id,
-            blob,
-            summary,
-        };
-
-        this.add(summary, db.activity);
-        idb.put('activity', record);
-        xf.dispatch('activity:add', summary);
-    }
-    add(activity, activityList) {
-        activityList.unshift(activity);
-        if(activityList.length > this.capacity) {
-            const summary = activityList.pop();
-            idb.remove('activity', summary.id);
-        }
-        return activityList;
-    }
-    remove(id) {
-        idb.remove('activity', id);
-    }
-    async upload(service, id) {
-        let record = await idb.get('activity', id);
-
-        if(service === 'strava' ||
-           service === 'intervals' ||
-           service === 'trainingPeaks') {
-
-            const res = await this.api[service].uploadWorkout(record);
-            record = await idb.get('activity', id);
-            record.summary.status[service] = res.substring(1);
-            await idb.put('activity', record);
-
-            xf.dispatch(`action:activity:${id}`, `:${service}:upload${res}`);
-        }
-        return;
-    }
-    async download(id) {
-        const self = this;
-        const record = await idb.get('activity', id);
-        fileHandler.download()(
-            record.blob,
-            self.fileName(record.summary.timestamp),
-            fileHandler.Type.OctetStream
-        );
-    }
-    fileName(timestamp) {
-        return `workout-${dateToDashString(new Date(timestamp))}.fit`;
-    }
-    encode(db) {
-        const records = db.records;
-        const laps = db.laps;
-        const events = db.events;
-        const ftp = db.ftp;
-
-        return fit.localActivity.encode({
-            records,
-            laps,
-            events,
-            ftp,
-        });
-    }
-    async restore() {
-        const records = await idb.getAll('activity') ?? [];
-
-        // migrate summary.status String to {strava: String, intervals: String}
-        records.forEach((record) => {
-            if(typeof record.summary.status === 'string') {
-                console.log(`:activity :migrating `, record.id);
-                record.summary.status = {strava: 'none', intervals: 'none'};
-                idb.put('activity', record);
-            }
-        });
-
-        return records
-            .map((record) => record.summary)
-            .sort((a, b) => b.timestamp - a.timestamp);
-    }
-}
-
 // TODO:
 // - differentiate between Workout and Activity
 // - this model should hold methods related to working on a Workout as memeber of the
@@ -667,10 +491,6 @@ class Activity extends Model {
 // - Activity is about the current active recording, session, and the list of actities
 //   which are just recorded data or .fit format, Workout is about .zwo format
 class Workout extends Model {
-    postInit(args = {}) {
-        const self = this;
-        self.api = args.api;
-    }
     // state init
     defaultValue() { return this.parse((first(workoutsFile))); }
     defaultIsValid(value) {
@@ -710,17 +530,6 @@ class Workout extends Model {
     fromIntervalsResponse(response) {
         return response.map(this.fromIntervalsEvent.bind(this));
     }
-    fromTrainingPeaksEvent(event) {
-        const workout = this.parse(atob(event.workout_file_base64));
-        workout.meta.planned = true;
-        workout.meta.startDateLocal = event.start_date_local;
-        workout.id = uuid();
-        workout.training_peaks_id = event.id;
-        return workout;
-    }
-    fromTrainingPeaksResponse(response) {
-        return response.map(this.fromTrainingPeaksEvent.bind(this));
-    }
     async readFromFile(file) {
         const result = await fileHandler.read(file);
         return {result, name: file.name};
@@ -744,18 +553,6 @@ class Workout extends Model {
     }
     download(db) {
         fileHandler.download()(this.encode(db), this.fileName(), fileHandler.Type.OctetStream);
-    }
-    send(db) {
-        // TODO: remove the whole method
-        const name = this.fileName();
-        const blob = fileHandler.toBlob(this.encode(db));
-
-        this.api.strava.uploadWorkout(blob);
-
-        return {
-            name,
-            blob,
-        };
     }
 }
 
@@ -822,130 +619,8 @@ class Workouts extends Model {
     }
 }
 
-function yesterdayOrOlder(timestamp) {
-    return new Date().getDate() - new Date(timestamp).getDate() > 0;
-}
-
 // TODO:
 // - standardize the methods
-class Planned {
-    name = 'planned';
-    constructor(args = {}) {
-        const self = this;
-        this.data = this.defaultValue();
-        this.workoutModel = args.workoutModel;
-        this.athlete = {};
-        this.storage = LocalStorageItem({
-            key: 'planned',
-            encode: JSON.stringify,
-            parse: JSON.parse,
-            fallback: this.defaultValue(),
-        });
-    }
-    defaultValue() {
-        return {workouts: [], modified: {}};
-    }
-    get(id) {
-        for(let workout of this.data.workouts) {
-            if(workout.id === id) {
-                return workout;
-            }
-        }
-        console.error(`tring to get a missing planned workout: ${id}`);
-        return first(this.data.workouts);
-    }
-    setWorkouts(workouts) {
-        this.data.workouts = workouts;
-    }
-    list() {
-        return this.data.workouts;
-    }
-    setModified(service = 'intervals') {
-        this.data.modified[service] = Date.now();
-    }
-    isEmpty() {
-        return this.data.workouts.length === 0;
-    }
-    restore() {
-        console.log(':planned :restore');
-
-        this.data = this.storage.restore();
-
-        if(yesterdayOrOlder(this.data.modified.intervals)) {
-            console.log(`:planned :outdated :calling :wod 'intervals'`);
-            this.getAthlete('intervals');
-            this.wod('intervals');
-            return;
-        }
-
-        console.log(`:planned :up-to-date`);
-        xf.dispatch(`action:planned`, ':data');
-    }
-    backup() {
-        this.storage.set(this.data);
-        xf.dispatch(`action:planned`, ':data');
-    }
-    // force refresh the wod data
-    async wod(service) {
-        const self = this;
-        if(service === 'intervals') {
-            const { startOfWeek, endOfWeek } = getStartEndOfWeek(new Date(), true);
-            const response = await api.intervals.wod(startOfWeek, endOfWeek);
-            const workouts = self.workoutModel.fromIntervalsResponse(response);
-
-            this.setWorkouts(workouts);
-            this.setModified(service);
-            this.backup();
-
-            if(!this.isEmpty()) {
-                for(let workout of this.data.workouts) {
-                    if(isToday(workout.meta.startDateLocal)) {
-                        const id = workout.id;
-                        xf.dispatch(`action:li:${id}`, ':select');
-                        break;
-                    }
-                }
-            }
-        }
-        if(service === 'trainingPeaks') {
-            // TrainingPeaks reads the calendar from the athlete's local today forward.
-            const today = isoDate();
-            const { startOfWeek, endOfWeek } = getStartEndOfWeek(new Date(), true);
-            const oldest = today > startOfWeek ? today : startOfWeek;
-            const newest = oldest > endOfWeek ? oldest : endOfWeek;
-            const response = await api.trainingPeaks.wod(oldest, newest);
-            const workouts = self.workoutModel.fromTrainingPeaksResponse(response);
-
-            this.setWorkouts(workouts);
-            this.setModified(service);
-            this.backup();
-
-            if(!this.isEmpty()) {
-                for(let workout of this.data.workouts) {
-                    if(isToday(workout.meta.startDateLocal)) {
-                        const id = workout.id;
-                        xf.dispatch(`action:li:${id}`, ':select');
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    async getAthlete(service) {
-        const self = this;
-        if(service === 'intervals') {
-            const response = await api.intervals.getAthlete();
-            console.log(response);
-            if(response.weight > 0) {
-                xf.dispatch('ui:weight-set', response.weight);
-            }
-            if(response.ftp > 0) {
-                xf.dispatch('ui:ftp-set', response.ftp);
-            }
-        }
-    }
-}
-
 function Session(args = {}) {
     let name = 'session';
 
@@ -1022,9 +697,8 @@ function Session(args = {}) {
 
             // Workouts
             workout: db.workout,
+            rideKind: db.rideKind,
             mode: db.mode,
-            lock: db.lock,
-            page: db.page,
 
             // Targets
             powerTarget: db.powerTarget,
@@ -1392,6 +1066,26 @@ class PropInterval {
     }
 }
 
+// Rolling average over the last `window` intervals, emitted every interval.
+// e.g. interval 1000, window 3 -> 3s power updated every second
+class RollingInterval extends PropInterval {
+    constructor(args = {}) {
+        super(args);
+        this.window = existance(args.window, 3);
+        this.buffer = [];
+    }
+    onInterval() {
+        if(equals(this.count, 0)) return;
+
+        this.buffer.push(this.accumulator / this.count);
+        if(this.buffer.length > this.window) this.buffer.shift();
+
+        this.state = this.buffer.reduce((acc, x) => acc + x, 0) / this.buffer.length;
+        xf.dispatch(`${this.effect}`, this.state);
+        this.reset();
+    }
+}
+
 class PowerInZone {
     constructor(args = {}) {
         const self = this;
@@ -1647,7 +1341,6 @@ class TSS {
 }
 
 
-const api = API();
 
 const power = new Power({prop: 'power'});
 const cadence = new Cadence({prop: 'cadence'});
@@ -1664,27 +1357,22 @@ const powerTarget = new PowerTarget({prop: 'powerTarget'});
 const resistanceTarget = new ResistanceTarget({prop: 'resistanceTarget'});
 const slopeTarget = new SlopeTarget({prop: 'slopeTarget'});
 const cadenceTarget = new CadenceTarget({prop: 'cadenceTarget'});
-const mode = new Mode({prop: 'mode'});
-const page = new Page({prop: 'page'});
+const mode = new Mode({prop: 'mode', storage: LocalStorageItem});
 
 const ftp = new FTP({prop: 'ftp', storage: LocalStorageItem});
 const weight = new Weight({prop: 'weight', storage: LocalStorageItem});
-const theme = new Theme({prop: 'theme', storage: LocalStorageItem});
-const dockMode = new DockMode({prop: 'dockMode', storage: LocalStorageItem});
+const powerTolerance = new PowerTolerance({prop: 'powerTolerance', storage: LocalStorageItem});
 const volume = new Volume({prop: 'volume', storage: LocalStorageItem});
 const measurement = new Measurement({prop: 'measurement', storage: LocalStorageItem});
-const dataTileSwitch = new DataTileSwitch({prop: 'dataTileSwitch', storage: LocalStorageItem});
 
 const virtualGear = new VirtualGear({prop: 'virtualGear'});
 
 const power1s = new PropInterval({prop: 'db:power', effect: 'power1s', interval: 1000});
-const power3s = new PropInterval({prop: 'db:power', effect: 'power3s', interval: 3000});
+const power3s = new RollingInterval({prop: 'db:power', effect: 'power3s', interval: 1000, window: 3});
 const powerInZone = new PowerInZone({ftpModel: ftp});
 
-const activity = new Activity({prop: 'activity', api: api});
-const workout = new Workout({prop: 'workout', api: api});
+const workout = new Workout({prop: 'workout'});
 const workouts = new Workouts({prop: 'workouts', workoutModel: workout});
-const planned = new Planned({prop: 'planned', workoutModel: workout, api: api});
 
 const session = Session();
 
@@ -1719,24 +1407,19 @@ let models = {
     cadenceTarget,
 
     mode,
-    page,
     ftp,
     weight,
-    dockMode,
+    powerTolerance,
     volume,
-    theme,
     measurement,
-    dataTileSwitch,
 
-    activity,
     workout,
     workouts,
-    planned,
     session,
 
     PropInterval,
+    RollingInterval,
 
-    api,
 };
 
 export { models };

@@ -1,108 +1,105 @@
-<img alt="Auuki Indoor Cyling app for Structured Training" src="https://github.com/user-attachments/assets/292a3216-2f52-4994-9b15-614446e41912" />
+# Auuki, home edition
 
-# Auuki
-Auuki is a powerful, no-nonsense app built for hammering out **structured workouts** on a smart trainer, right in your browser. No installs, no dependencies, no slow updates taking from precious training time.
+A personal fork of **[Auuki](https://github.com/dvmarinoff/Auuki)** by Dimitar Marinov
+([@dvmarinoff](https://github.com/dvmarinoff)), the browser app for structured indoor
+cycling workouts on a smart trainer.
 
-**Key Features**:
-* Run Zwift **.ZWO workouts**
-* Connect via **Bluetooth** to smart trainers, power meters, heart rate monitors, the moxy monitor, and many more
-* Full control with **ERG mode**, **Grade Simulation**, and **Resistance mode**
-* Workouts with **Slope-based targets** for realistic effort control
-* Record **.FIT activities** in a cross-industry standard
-* Recording of native **RR intervals** in the .FIT file
-* Built-in structured workouts to get you started
-* **Intervals.icu and Strava** integrations for seamless syncing and uploads
+This fork runs Auuki on a small server at home: several riders share one setup, each
+with their own Intervals.icu and Garmin Connect accounts, and rides are stored on that
+server. The interface is redesigned around picking a rider, connecting sensors and
+riding.
 
-Built as a **progressive web app (PWA)**, Auuki is fully browser-based and runs independently. It makes use of some of the most advanced Browser APIs like: Web Bluetooth, Web Serial, and Web Components. The web version is **free and open-source**, keeping everything on your device.
-Train anywhere, with full control directly in your browser.
+> [!NOTE]
+> This is a modified version of Auuki and is **not** the official app, not affiliated with
+> or endorsed by the Auuki project or [auuki.com](https://auuki.com). Please report
+> problems with this fork here, not upstream. The name Auuki and its logo belong to the
+> original project. For the official app, go to [auuki.com](https://auuki.com).
 
-_Status_: Currently working on creating a full suite of Apple platform native apps (iOS, iPadOS, tvOS, watchOS).
+<img alt="Start screen: today's planned workout, sensors and recent rides" src="doc/images/home/desktop-start.png" />
 
-# The Web App
-- You can find the web app at [auuki.com](https://auuki.com)
-- There is also a special development version which has the latest features available for preview: [dev.auuki.com](https://dev.auuki.com)
-- [How to create a Profile and Connect Intervals.icu](https://forum.intervals.icu/t/auuki-com-intervals-icu-integration/87105)
+## What this fork changes
 
-## Sponsors 💖
-So, if you’re loving what Auuki’s bringing to the table, consider supporting the project on [GitHub Sponsors](https://github.com/sponsors/dvmarinoff)? Think of it as buying me a coffee or, heck, a whole power meter to keep this thing cranking. Hit that sponsor button and let’s keep the good times rolling!
+Everything Auuki does stays: .zwo workouts, Bluetooth trainers and sensors, ERG,
+resistance and slope modes, .FIT recording. On top of that:
 
-## Supported Browsers and Platforms
+- **Riders**: a "Who's riding?" screen, each rider with an optional PIN.
+- **Accounts per rider**: Intervals.icu (planned workouts, upload) and Garmin Connect
+  (upload). API keys and tokens stay on the server, the browser never sees them.
+- **FTP and weight** from Intervals.icu, Garmin Connect or entered by hand, refreshed
+  when the app opens.
+- **Rides on the server** as .FIT files, uploaded to Intervals.icu or Garmin on demand.
+- **Redesigned interface** for wide screens and phones: a start screen with today's
+  workout, a ride screen with a pacing gauge for the target range, sensors and accounts
+  in one consistent list, 44 px touch targets.
+- **All seven sensor types** in one place: trainer, heart rate, power meter, speed and
+  cadence, muscle oxygen, core temperature and controller.
 
-### MacOS, Windows, Andorid 
+<img alt="Riding a workout: interval countdown, 3 s power in the target range, tiles and the workout profile" src="doc/images/home/desktop-ride.png" />
 
-Please use either Chrome, Edge, Opera, Samsung Internet, or Brave. These browsers include built-in bluetooth.
+<img alt="Workouts: the plan from Intervals.icu and the built-in library" src="doc/images/home/desktop-workouts.png" />
+
+<table>
+  <tr>
+    <td><img alt="Start screen on a phone" src="doc/images/home/phone-start.png" width="260"></td>
+    <td><img alt="Ride screen on a phone" src="doc/images/home/phone-ride.png" width="260"></td>
+    <td><img alt="Settings on a phone: FTP and weight source, accounts, sensors" src="doc/images/home/phone-settings.png" width="260"></td>
+  </tr>
+</table>
+
+The screenshots show a demo rider with simulated sensor data.
+
+## Run it
+
+The app and its API run in one container on http://localhost:8080:
+
+```bash
+docker compose up -d --build
+```
+
+Riders, accounts and sensors are set up in the app on first start. Data lives in the
+`auuki-data` volume. Web Bluetooth needs a secure context: `localhost` works as is, other
+devices on the network need HTTPS through a reverse proxy (see
+[server/README.md](server/README.md)).
+
+Development:
+
+```bash
+npm install
+cd server && uv sync && cd ..
+(cd server && uv run uvicorn app.main:create_app --factory --port 8080) &
+npm start            # http://localhost:1234, /api is proxied to :8080
+npm test             # Jest
+cd server && uv run pytest
+```
+
+The server's endpoints and settings are described in [server/README.md](server/README.md).
+
+## Supported browsers and trainers
+
+From the original project, still true for this fork:
 
 | Chrome | Edge | Opera | Chrome Android | Samsung Internet | Brave | Firefox | Safari | Safari iOS | Chrome iOS |
 |--------|------|-------|----------------|------------------|-------|---------|--------|------------|------------|
 | yes    | yes  | yes   | yes            | yes              | yes*  | no      | no     | no         | no         |
 
-If using Brave browser, you'll need to [manually enable bluetooth support](https://community.brave.com/t/can-you-enable-web-bluetooth-api-in-brave/522553/2).
+\* Brave needs [Web Bluetooth turned on](https://community.brave.com/t/can-you-enable-web-bluetooth-api-in-brave/522553/2).
+On Linux, the experimental web platform features flag may be needed
+(`chrome://flags/#enable-experimental-web-platform-features`).
 
-### Linux
-On Linux you might need to turn on the experimental platforms feature flag in your browser:
+Trainers work over Bluetooth FTMS, Tacx FE-C over BLE or Wahoo CPS, which covers most
+smart trainers since 2020. ANT+ through a USB stick is experimental. See the
+[original README](https://github.com/dvmarinoff/Auuki#supported-trainers) for details.
 
-- Chrome: `chrome://flags/#enable-experimental-web-platform-features`
+## Credits and license
 
-- Edge: `edge://flags/#enable-experimental-web-platform-features`
+Auuki is © Dimitar Marinov and its contributors, licensed under the
+[GNU Affero General Public License v3.0](LICENSE.txt). This fork is a modified version,
+changed from November 2026 on by Moritz Hoferer, and is released under the same license.
+The changes are visible in this repository's history.
 
-- Opera: `opera://flags/#enable-experimental-web-platform-features`
+Under the AGPL, anyone you let use a hosted copy over a network must be able to get its
+source. The app links to this repository under Settings. If you host a changed version
+for others, point that link to your source.
 
-### iOS
-Not Supported by the Web version
-
-## Supported Trainers
-
-### FTMS, FE-C over BLE, or WahooCPS
-
-Works with all trainers that implement the bluetooth Fitness Machine Service (FTMS) or the Tacx FE-C over BLE solution.
-
-The following table is copied from [DC Rainmaker Trainer Guide](https://www.dcrainmaker.com/2020/11/smart-cycle-trainer-recommendations-guide-winter.html/#technical-considerations) and shows current protocol support across the industry.
-
-```
-- Elite:    ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Gravat:   ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers
-- JetBlack: ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Kinetic:  ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Minoura:  ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Saris:    ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- STAC:     ANT+ FE-C and Bluetooth FTMS on all 2020 smart trainers.
-- Tacx:     ANT+ FE-C on all ‘Smart’ branded trainers (except Satori). FTMS on all non-NEO models. FEC over BLE on NEO.
-- Wahoo:    ANT+ FE-C on all smart trainers. FTMS on all 2020 smart trainer.
-- 4iiii:    ANT+ FE-C and Bluetooth FTMS on Fliiiight (--Ed)
-- Schwinn:  Bluetooth FTMS on the IC8 / 800IC (--Ed)
-```
-
-### ANT+
-
-Support for ANT+ is experimental at the moment. It is being rewritten right now and the code is moved to [WebANT](https://github.com/dvmarinoff/WebANT), which has a separate demo. When it becomes stable enough will be merged here. It currently has support for Ubuntu(Linux), and partially for MacOS, and Android. Windows 10 may be possible in the future.
-
-
-The current development setup is using Suunto movestick mini, Garmin Fenix 5 watch broadcasting heart rate,
-Tacx Heart Rate monitor, Tacx Flux S trainer, and X240 laptop with Ubuntu 20.04.2 LTS, M1 Mac, and Samsung S9 Android phone.
-
-## Manual
-- [How to create a Profile and Connect Intervals.icu](https://forum.intervals.icu/t/auuki-com-intervals-icu-integration/87105)
-- [How-To: Using the connection settings](https://github.com/dvmarinoff/Auuki/discussions/91)
-- [How-To: Using Auuki and another app concurrently](https://github.com/dvmarinoff/Auuki/discussions/101)
-
-## Backers
-<div>
-    <a href="https://github.com/KlausMu" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/14290221?v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/TClin76" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/96434118?v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/fvolcic" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/59806465?s=64&v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/napfbike" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/192727271?v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/sharalds" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/25537910?v=4" width="48" height="48" />
-    </a>
-    <a href="https://github.com/BenSimpsonAnalytics" target="_blank">
-        <img style="display: inline-block;" src="https://avatars.githubusercontent.com/u/81325092?v=4" width="48" height="48" />
-    </a>
-</div>
+If you like Auuki, support the original project on
+[GitHub Sponsors](https://github.com/sponsors/dvmarinoff).
