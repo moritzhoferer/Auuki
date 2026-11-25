@@ -19,6 +19,7 @@ Baseline on upstream/develop @ 3442b6a (2026-11-22): 461 pass, 50 fail, 11 skipp
 (home with all feat branches incl. ride panel: 528 pass, same 50 fail; server: 24 pytest).
 Redesign (branch `redesign`, merged into `home`; old views and their tests deleted):
 521 pass, 20 fail, 11 skipped; server: 37 pytest.
+Ride grid (branch `ride-grid`, merged into `home`): 546 pass, same 20 fail, 11 skipped.
 The failures already exist upstream. They come from stale tests that import moved or
 removed modules (`src/ble/uuids.js`, `src/fit/activity.js`, `src/fit/profiles.js`, ...)
 and from jsdom gaps (`idb.test.js`). Don't fix them unless asked. Compare against this
