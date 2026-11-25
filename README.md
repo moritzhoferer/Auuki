@@ -35,8 +35,8 @@ resistance and slope modes, .FIT recording. On top of that:
 - **Workout intensity** in ERG: instead of a watt target, − and + (or the arrow keys)
   scale the whole workout in 1 % steps, e.g. 95 % on a tired day. The trainer target,
   the target range and the next interval follow; every workout starts at 100 %.
-- **All seven sensor types** in one place: trainer, heart rate, power meter, speed and
-  cadence, muscle oxygen, core temperature and controller.
+- **All eight sensor types** in one place: trainer, heart rate, power meter, speed and
+  cadence, muscle oxygen, core temperature, controller and Di2 buttons (D-Fly).
 
 <img alt="Riding a workout: interval countdown, 3 s power in the target range, sensor fields, ride totals and the workout profile" src="doc/images/home/desktop-ride.png" />
 
