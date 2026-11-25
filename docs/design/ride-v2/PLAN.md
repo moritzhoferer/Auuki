@@ -73,8 +73,9 @@ rideLayout({width, height, kind, primary, secondary})
 ## Phase 5: other screens (separate commits, after the ride screen is accepted)
 
 - Settings: sensor and account rows exactly 1 unit (64 px).
-- Rides list: 1 unit per ride.
-- Workout cards (start, workouts): 3 units, in a grid with the same gap.
+- Rides list: 1 unit per ride where the buttons fit; at 400 px they wrap below the text.
+- Workout cards (start, workouts): 2 units, in a grid with the same gap. (3 was planned, but
+  Ride sits next to the name, so 2 is enough.)
 - Then retake the README screenshots.
 
 ## Open points (my defaults unless you say otherwise)

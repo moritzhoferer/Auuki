@@ -89,7 +89,7 @@ The other screens may scroll (they are lists), but they use the same units:
 | Thing | Rows |
 |---|---|
 | sensor / account row in Settings | 1 |
-| ride in the rides list | 1 |
-| workout card (name, meta, profile, Ride) | 3 |
-| today's workout on the start screen | 3 (4 with description) |
+| ride in the rides list | 1 (buttons wrap below the text when they don't fit, e.g. at 400 px) |
+| workout card (name and meta next to Ride, profile below) | 2 |
+| today's workout on the start screen | 2 (same card) |
 | section heading | text on the 8 px base, not a tile |
