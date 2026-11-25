@@ -194,6 +194,7 @@ class Sources extends Model {
             virtualState: 'power',
             autoPause:    true,
             autoStart:    true,
+            di2Swap:      false, // swap Di2 left/right buttons
             theme:        'DARK',
 
             // data tile settings

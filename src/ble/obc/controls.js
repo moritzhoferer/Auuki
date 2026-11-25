@@ -1,5 +1,6 @@
 import { xf, isArray, equals } from '../../functions.js';
 import { ControlMode } from '../enums.js';
+import { toControlMessages as di2Messages } from '../di2/di2.js';
 
 function OpenBikeControl() {
 
@@ -71,14 +72,6 @@ function OpenBikeControl() {
                 }
                 continue;
             }
-            if(equals(message.action, 'togglePause')) {
-                if(equals(watchStatus, 'started')) {
-                    actions.push({event: 'ui:watchPause'});
-                } else if(equals(watchStatus, 'paused')) {
-                    actions.push({event: 'ui:watchResume'});
-                }
-                continue;
-            }
             if(equals(message.action, 'changeMode')) {
                 actions.push({event: 'ui:mode-set', data: nextMode[mode] || ControlMode.erg});
             }
@@ -106,7 +99,11 @@ function OpenBikeControl() {
     }
 
     xf.reg('ble:openBikeControl:buttonState', onButtonState);
-    xf.reg('ble:di2:buttonState', onButtonState);
+    // Di2 sends raw button events, the left/right swap is a rider setting
+    xf.reg('ble:di2:buttonState', (events, db) => {
+        const swap = db?.sources?.di2Swap === true;
+        onButtonState(di2Messages(events, {swap}), db);
+    });
 
     return Object.freeze({
         controlsFor,

@@ -89,30 +89,31 @@ function Di2Buttons() {
     return Object.freeze({decode, reset});
 }
 
-// Which D-Fly channel sits on which lever depends on the E-TUBE assignment.
-// Expected setup: left lever button -> channel 1, right lever button -> channel 2.
-const Channel = Object.freeze({
-    left: 1,
-    right: 2,
-});
+// Which D-Fly channel sits on which lever depends on the E-TUBE assignment and
+// can't be read over BLE. Default: left lever -> channel 1, right lever -> channel 2.
+// The rider can swap them (sources.di2Swap).
+//
+// Bool -> {left: Int, right: Int}
+function channels(swap = false) {
+    return swap ? {left: 2, right: 1} : {left: 1, right: 2};
+}
 
 // Maps Di2 events to the same messages Open Bike Control produces,
-// so obc/controls.js can turn them into app actions.
+// so obc/controls.js can turn them into app actions (it applies sources.di2Swap).
 //
 // right short: harder, right long: next interval
 // left short:  easier, left long:  previous interval
-// double on either: pause / resume
+// double, held and release do nothing
 //
-// [{channel, press}] -> [{action: String, state: 'pressed'}]
-function toControlMessages(events = []) {
+// [{channel, press}], {swap: Bool} -> [{action: String, state: 'pressed'}]
+function toControlMessages(events = [], {swap = false} = {}) {
+    const Channel = channels(swap);
     const messages = [];
 
     for(const {channel, press} of events) {
         let action;
 
-        if(press === PressType.double) {
-            action = 'togglePause';
-        } else if(channel === Channel.right && press === PressType.short) {
+        if(channel === Channel.right && press === PressType.short) {
             action = 'increaseDifficulty';
         } else if(channel === Channel.left && press === PressType.short) {
             action = 'decreaseDifficulty';
@@ -142,7 +143,7 @@ function Di2(args = {}) {
             uuid: uuids.di2Buttons,
             notify: {
                 callback: onData,
-                parser: {decode: (dataview) => toControlMessages(buttons.decode(dataview))},
+                parser: {decode: buttons.decode},
             },
         },
     };
