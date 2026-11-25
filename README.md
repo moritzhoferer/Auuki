@@ -32,6 +32,9 @@ resistance and slope modes, .FIT recording. On top of that:
   workout, a ride screen that fits any window without scrolling (pacing gauge for the
   target range, fields for the connected sensors, controls over the power box), sensors
   and accounts in one consistent list, 44 px touch targets.
+- **Workout intensity** in ERG: instead of a watt target, − and + (or the arrow keys)
+  scale the whole workout in 1 % steps, e.g. 95 % on a tired day. The trainer target,
+  the target range and the next interval follow; every workout starts at 100 %.
 - **All seven sensor types** in one place: trainer, heart rate, power meter, speed and
   cadence, muscle oxygen, core temperature and controller.
 
