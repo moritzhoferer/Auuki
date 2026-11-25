@@ -6,9 +6,11 @@ import {
 import {
     workoutDuration, workoutPosition, profileBlocks, smooth, stepLabel, intervalTarget,
 } from '../models/profile.js';
+import { availableFields } from '../models/fields.js';
+import { rideLayout } from '../models/layout.js';
 
 //
-// The ride screen. One layout for every width: CSS arranges the same parts in one
+// The ride screen. <ride-grid> places the same parts on the row grid in one
 // column (split view) or two (wide). Free rides hide the workout parts.
 //
 
@@ -406,6 +408,113 @@ class RideControls extends RideView {
 }
 
 customElements.define('ride-controls', RideControls);
+
+
+//
+// <ride-grid primary="heartRate,cadence" secondary="powerAvg,kcal">
+// Places its [data-tile] children on the row grid with rideLayout(): on resize, when a
+// sensor connects or drops, and per ride kind. Field tiles are made here, in one or two
+// .ride-fields blocks. All the maths is in models/layout.js.
+//
+const keyList = (value) => (value ?? '').split(',').map(k => k.trim()).filter(Boolean);
+const px = (value) => parseFloat(value) || 0;
+
+class RideGrid extends RideView {
+    props() {
+        return ['sensors', 'rideKind', 'screen'];
+    }
+    config() {
+        this.primary   = keyList(this.getAttribute('primary'));
+        this.secondary = keyList(this.getAttribute('secondary'));
+        this.tiles  = new Map();   // field key -> <metric-tile>
+        this.groups = [];          // .ride-fields blocks
+        this.$profile = this.querySelector('[data-tile="profile"]');
+        this.last = '';
+        this.observer = new ResizeObserver(() => this.update());
+        this.observer.observe(this);
+    }
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this.observer?.disconnect();
+    }
+    size() {
+        const style = getComputedStyle(this);
+        return {
+            width:  this.clientWidth  - px(style.paddingLeft) - px(style.paddingRight),
+            height: this.clientHeight - px(style.paddingTop)  - px(style.paddingBottom),
+        };
+    }
+    tile(key) {
+        if(!this.tiles.has(key)) {
+            const $tile = document.createElement('metric-tile');
+            $tile.setAttribute('field', key);
+            this.tiles.set(key, $tile);
+        }
+        return this.tiles.get(key);
+    }
+    group(i) {
+        if(!this.groups[i]) {
+            const $group = document.createElement('div');
+            $group.className = 'ride-fields';
+            $group.dataset.tile = 'fields';
+            this.insertBefore($group, this.$profile);
+            this.groups[i] = $group;
+        }
+        return this.groups[i];
+    }
+    render() {
+        const { width, height } = this.size();
+        if(width <= 0 || height <= 0) return;   // not on screen
+
+        const kind = equals(this.data.rideKind, 'free') ? 'free' : 'workout';
+        const keys = (list) => availableFields(list, this.data.sensors).map(f => f.key);
+        // a free ride has no profile to look at, so its totals show at every width
+        const primary   = kind === 'free' ? keys([...this.primary, ...this.secondary]) : keys(this.primary);
+        const secondary = kind === 'free' ? [] : keys(this.secondary);
+
+        const layout = rideLayout({width, height, kind, primary, secondary});
+        const key = JSON.stringify(layout);
+        if(equals(key, this.last)) return;
+        this.last = key;
+
+        this.toggleAttribute('data-wide', layout.wide);
+        const place = ($el, item) => {
+            $el.hidden = false;
+            $el.style.gridColumn = item.col;
+            $el.style.gridRow = `${item.row} / span ${item.span}`;
+        };
+
+        const used = new Set();
+        let g = 0;
+        for(const item of layout.items) {
+            if(equals(item.key, 'fields')) {
+                const $group = this.group(g++);
+                place($group, item);
+                $group.dataset.size = item.size;
+                $group.style.gridTemplateColumns = `repeat(${item.cols}, minmax(0, 1fr))`;
+                const shown = [...$group.children].map($t => $t.getAttribute('field')).join(',');
+                if(!equals(shown, item.fields.join(','))) {
+                    $group.replaceChildren(...item.fields.map(k => this.tile(k)));
+                }
+                used.add($group);
+                continue;
+            }
+            const $el = this.querySelector(`:scope > [data-tile="${item.key}"]`);
+            if(!$el) continue;
+            place($el, item);
+            if(item.step) $el.dataset.step = item.step;
+            if(equals(item.key, 'interval')) $el.toggleAttribute('data-next', item.next);
+            used.add($el);
+        }
+        for(const $el of this.querySelectorAll(':scope > [data-tile]')) {
+            if(used.has($el)) continue;
+            $el.hidden = true;
+            if(equals($el.dataset.tile, 'fields')) $el.replaceChildren();
+        }
+    }
+}
+
+customElements.define('ride-grid', RideGrid);
 
 
 //

@@ -567,9 +567,10 @@ dialog.sheet { padding-top: 0; padding-bottom: calc(var(--pad) + env(safe-area-i
 
 /* ---------- ride ---------- */
 
-.screen--ride { max-width: none; gap: var(--gap); min-height: calc(100dvh - var(--bar-h) - var(--pad)); }
-.screen--ride .ride-layout { flex: 1; align-content: start; }
-body[data-screen="ride"] main { padding-bottom: 0; }
+/* the screen is exactly the window below the app bar: the grid takes what the bottom
+   bar leaves and never scrolls (docs/design/PRINCIPLES.md §6) */
+body[data-screen="ride"] main { padding: 0; }
+.screen--ride { max-width: none; gap: 0; height: calc(100dvh - var(--bar-h)); }
 
 body[data-ride-kind="free"] .workout-only { display: none !important; }
 [data-when="riding"],
@@ -581,67 +582,93 @@ body[data-watch="started"] [data-when="riding"].btn,
 body[data-watch="paused"]  [data-when="riding"].btn { display: inline-flex !important; align-self: flex-start; }
 body:not([data-ride-kind="free"]) .free-only { display: none !important; }
 
-.ride-layout { display: grid; gap: var(--gap); }
-.ride-main, .ride-side { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+/* rows of one unit; rideLayout() writes grid-row/grid-column on each tile.
+   Padding and column gap must match models/layout.js. */
+ride-grid {
+    flex: 1 1 0; min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: var(--unit);
+    gap: var(--gap);
+    align-content: start;
+    padding: 10px 12px;
+}
+ride-grid[data-wide] { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); column-gap: 12px; }
+@media (min-width: 700px) { ride-grid { padding: 10px 16px; } }
+ride-grid > [hidden] { display: none !important; }
+ride-grid > * { min-width: 0; min-height: 0; }
 
-.ride-focus, .ride-next, .ride-profile, .tile {
+.ride-next, .ride-profile, .tile {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: var(--card-pad);
 }
 
-/* the focus card: interval countdown, then 3 s power and gauge, then interval stats */
-.ride-focus { display: flex; flex-direction: column; gap: 10px; }
-.ride-focus > .ride-pacing { padding-top: 10px; border-top: 1px solid var(--border); }
-
-/* interval countdown: the time and its progress bar share one row */
-interval-block { display: flex; flex-direction: column; gap: 2px; }
-.rp-interval--label { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rp-interval--label:empty { display: none; }
-.rp-interval--elapsed { color: var(--muted); font-size: .9rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rp-interval--row { display: flex; align-items: center; gap: 14px; }
-.rp-interval--countdown {
-    font-size: clamp(2.2rem, 9vw, 3.2rem);
-    font-weight: 700;
-    line-height: 1.05;
-    font-variant-numeric: tabular-nums;
-}
+/* interval: flat, 2 rows. Label and elapsed, countdown, progress, and in narrow the next interval */
+interval-block { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 2px; }
+.rp-interval--head { display: flex; align-items: baseline; gap: 12px; min-height: 1.2em; }
+.rp-interval--label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-interval--elapsed { margin-left: auto; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp-interval--row { display: flex; align-items: baseline; gap: 8px; }
+.rp-interval--countdown { font-size: 52px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+ride-grid[data-wide] .rp-interval--countdown { font-size: 64px; }
+.rp-interval--left { color: var(--muted); font-weight: 600; }
 interval-block.final .rp-interval--countdown { color: var(--near); }
-.rp-interval--progress { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.rp-interval--progress { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .rp-interval--progress-bar { height: 100%; width: 0; background: var(--accent-2); transition: width .9s linear; }
+.rp-interval--next { display: none; align-items: baseline; gap: 8px; font-size: .9rem; }
+interval-block[data-next] .rp-interval--next { display: flex; }
+.rp-interval--next .rp-next--what { flex: 1; font-weight: 600; }
+interval-block.final .rp-interval--next :is(.tile--label, .rp-next--what) { color: var(--near); }
 
-.ride-elapsed { display: flex; flex-direction: column; }
-.ride-elapsed--value { font-size: clamp(2.2rem, 9vw, 3.2rem); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.ride-elapsed { display: flex; flex-direction: column; justify-content: center; padding: 0 2px; }
+.ride-elapsed--value { font-size: 64px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -.02em; }
 
-/* pacing */
-pacing-box { display: flex; flex-direction: column; gap: 4px; }
-.rp-pacing--status { min-height: 1.4em; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: .9rem; }
+/* pacing: the hero. Four designed steps (rows): S 3, M 4, L 6, XL 8. The status colour
+   tints the border and the background. */
+pacing-box {
+    --c: var(--border); --num: 104px; --tv: 20px; --zh: 20px; --st: .8rem; --sv: 1.25rem;
+    position: relative;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: var(--card-pad) calc(var(--card-pad) + 2px);
+    border: 2px solid var(--c);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--c) 10%, var(--surface));
+}
+pacing-box[data-zone="none"] { background: var(--surface); }
+pacing-box[data-zone="in"]   { --c: var(--in); }
+pacing-box[data-zone="near"] { --c: var(--near); }
+pacing-box[data-zone="out"]  { --c: var(--out); }
+pacing-box[data-step="s"]  { --num: 72px;  --tv: 18px; --zh: 14px; --st: .75rem; --sv: 1.1rem; }
+pacing-box[data-step="l"]  { --num: 148px; --tv: 24px; --zh: 26px; --st: .95rem; --sv: 1.5rem; }
+pacing-box[data-step="xl"] { --num: 240px; --tv: 28px; --zh: 34px; --st: 1.1rem; --sv: 1.9rem; padding: 16px 20px; }
+.rp-pacing--status { min-height: 1.4em; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; font-size: var(--st); }
 .rp-pacing--value { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
-.rp-pacing--power { font-size: clamp(3.4rem, 18vw, 6rem); font-weight: 700; line-height: 1; }
-.rp-pacing--unit { color: var(--muted); font-size: 1.2rem; }
-pacing-box[data-zone="in"]   .rp-pacing--status, pacing-box[data-zone="in"]   .rp-pacing--power { color: var(--in); }
-pacing-box[data-zone="near"] .rp-pacing--status, pacing-box[data-zone="near"] .rp-pacing--power { color: var(--near); }
-pacing-box[data-zone="out"]  .rp-pacing--status, pacing-box[data-zone="out"]  .rp-pacing--power { color: var(--out); }
+.rp-pacing--power { font-size: var(--num); font-weight: 800; line-height: .9; letter-spacing: -.02em; }
+.rp-pacing--unit { color: var(--muted); font-size: calc(var(--st) + 1px); white-space: nowrap; }
+pacing-box:is([data-zone="in"], [data-zone="near"], [data-zone="out"]) :is(.rp-pacing--status, .rp-pacing--power) { color: var(--c); }
 pacing-box[data-zone="none"] .rp-gauge { visibility: hidden; }
+/* free ride: no gauge, the number sits in the middle */
+body[data-ride-kind="free"] .rp-pacing--value { margin-block: auto; }
 
 /* gauge: range labels and ticks above the bar, 3 s needle across it, the interval
    average below it on its own, so it never covers a label at the edge of the range */
-.rp-gauge { position: relative; width: 100%; margin-top: 4px; padding: 22px 0 14px; }
-.rp-gauge--track { display: flex; height: 10px; border-radius: 5px; overflow: hidden; }
+.rp-gauge { position: relative; width: 100%; padding: calc(var(--tv) + 4px) 0 16px; }
+.rp-gauge--track { display: flex; height: var(--zh); border-radius: var(--radius); overflow: hidden; }
 .rp-gauge--zone-out  { width: 15%; background: color-mix(in srgb, var(--out) 45%, transparent); }
 .rp-gauge--zone-near { width: 15%; background: color-mix(in srgb, var(--near) 45%, transparent); }
-.rp-gauge--zone-in   { width: 40%; background: color-mix(in srgb, var(--in) 55%, transparent); }
+.rp-gauge--zone-in   { width: 40%; background: color-mix(in srgb, var(--in) 60%, transparent); }
 .rp-gauge--needle {
-    position: absolute; top: 17px; left: 50%;
-    width: 4px; height: 20px; margin-left: -2px;
-    border-radius: 2px;
+    position: absolute; top: calc(var(--tv) + 1px); left: 50%;
+    width: 6px; height: calc(var(--zh) + 6px); margin-left: -3px;
+    border-radius: 3px;
     background: var(--text);
     box-shadow: 0 0 0 2px var(--bg);
     transition: left .4s ease-out;
 }
 .rp-gauge--avg {
-    position: absolute; top: 37px; left: 50%;
+    position: absolute; top: calc(var(--tv) + var(--zh) + 8px); left: 50%;
     width: 10px; height: 10px; margin-left: -5px;
     transform: rotate(45deg);
     background: var(--muted);
@@ -650,34 +677,40 @@ pacing-box[data-zone="none"] .rp-gauge { visibility: hidden; }
 .rp-gauge--avg[data-zone="in"]   { background: var(--in); }
 .rp-gauge--avg[data-zone="near"] { background: var(--near); }
 .rp-gauge--avg[data-zone="out"]  { background: var(--out); }
-.rp-gauge--labels { position: absolute; left: 0; right: 0; top: 0; height: 16px; font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.rp-gauge--low, .rp-gauge--high { position: absolute; transform: translateX(-50%); line-height: 16px; }
+.rp-gauge--labels { position: absolute; left: 0; right: 0; top: 0; height: var(--tv); font-size: calc(var(--tv) - 4px); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rp-gauge--low, .rp-gauge--high { position: absolute; transform: translateX(-50%); line-height: var(--tv); }
 .rp-gauge--low  { left: 30%; }
 .rp-gauge--high { left: 70%; }
-/* tick from the label down to the green edge */
+/* tick from the label down across the green edge */
 .rp-gauge--low::after, .rp-gauge--high::after {
-    content: ''; position: absolute; left: 50%; top: 17px;
-    width: 2px; height: 15px; margin-left: -1px;
-    background: var(--muted);
+    content: ''; position: absolute; left: 50%; top: var(--tv);
+    width: 2px; height: calc(var(--zh) + 8px); margin-left: -1px;
+    background: var(--text);
 }
+
 /* interval stats under the gauge; the diamond matches the average marker */
-.rp-stats { display: flex; flex-wrap: wrap; gap: 6px 24px; }
-.rp-stat { display: inline-flex; align-items: baseline; gap: 8px; }
-.rp-stat--label { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
-.rp-stat--value { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rp-stats { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.rp-stat { display: inline-flex; align-items: baseline; gap: 6px; }
+.rp-stat--label { color: var(--muted); font-size: var(--st); }
+.rp-stat--value { font-size: var(--sv); font-weight: 700; font-variant-numeric: tabular-nums; }
 .rp-legend--avg { align-self: center; width: 9px; height: 9px; transform: rotate(45deg); background: var(--muted); }
 .rp-stats:has(lap-power-status[data-zone="in"])   .rp-legend--avg { background: var(--in); }
 .rp-stats:has(lap-power-status[data-zone="near"]) .rp-legend--avg { background: var(--near); }
 .rp-stats:has(lap-power-status[data-zone="out"])  .rp-legend--avg { background: var(--out); }
 
+/* field tiles: S is 1 row, M is 2 rows with a bigger number */
+.ride-fields { display: grid; grid-auto-rows: var(--unit); gap: var(--gap); }
+.ride-fields metric-tile { justify-content: center; gap: 0; padding: 8px 10px; border-radius: var(--radius-tile); }
+.ride-fields .tile--label { font-size: .7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ride-fields .tile--value { font-size: 24px; line-height: 1.15; white-space: nowrap; overflow: hidden; }
+.ride-fields .tile--unit { font-size: .75rem; }
+/* in M the number takes the whole width, so the unit moves up next to the label */
+.ride-fields[data-size="m"] metric-tile { position: relative; grid-row: span 2; justify-content: space-between; padding: 12px 14px; }
+.ride-fields[data-size="m"] .tile--label { font-size: .8rem; padding-right: 3em; }
+.ride-fields[data-size="m"] .tile--value { font-size: 52px; line-height: 1; }
+.ride-fields[data-size="m"] .tile--unit { position: absolute; top: 12px; right: 14px; font-size: .8rem; line-height: 1.35; }
+
 /* tiles */
-/* ride tiles: compact, three to a row on a phone; radius = their padding + button radius */
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
-.tiles .tile { padding: 8px 10px; border-radius: var(--radius-tile); gap: 0; }
-.tiles .tile--label { font-size: .7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tiles .tile--value { font-size: 1.35rem; white-space: nowrap; }
-.tiles .tile--unit { font-size: .8rem; }
-tile-row.tiles--extra { display: contents; }
 .tile, metric-tile { display: flex; flex-direction: column; gap: 2px; }
 metric-tile.tile { min-width: 0; }
 .tile--label { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
@@ -688,36 +721,36 @@ lap-power-status[data-zone="in"]   { color: var(--in); }
 lap-power-status[data-zone="near"] { color: var(--near); }
 lap-power-status[data-zone="out"]  { color: var(--out); }
 
-/* next interval */
-next-interval { display: flex; flex-direction: column; gap: 2px; }
-.rp-next--row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
-.rp-next--what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* next interval: one row in wide; in narrow the same view is a line in the interval block */
+next-interval { display: flex; align-items: baseline; gap: 10px; min-width: 0; font-variant-numeric: tabular-nums; }
+.ride-next { align-items: center; border-width: 2px; border-color: transparent; }
+.ride-next .rp-next--what, .ride-next .rp-next--target { font-size: 1.05rem; font-weight: 700; }
+.rp-next--what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp-next--label:not(:empty)::after { content: ' · '; }
-.rp-next--target { color: var(--accent); white-space: nowrap; }
-next-interval.final { border-color: var(--near); }
+.rp-next--target { color: var(--accent); font-weight: 700; white-space: nowrap; }
+.ride-next.final { border-color: var(--near); }
 
-/* profile */
-ride-profile { display: flex; flex-direction: column; gap: 6px; }
-ride-profile svg { width: 100%; height: 90px; display: block; }
+/* profile: 1 to 3 rows, the drawing takes what the times leave */
+ride-profile { display: flex; flex-direction: column; gap: 3px; }
+ride-profile svg { width: 100%; flex: 1; min-height: 0; display: block; }
 .rp-profile--todo rect { fill: var(--surface-2); }
 /* done: a step above todo, dark enough for the light power line on top */
 .rp-profile--done rect { fill: var(--off); }
 .rp-profile--power { fill: none; stroke: var(--accent-2); stroke-width: 2; }
 .rp-profile--now { stroke: var(--text); stroke-width: 2; }
-.rp-profile--times { display: flex; justify-content: space-between; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.rp-profile--times { display: flex; justify-content: space-between; color: var(--muted); font-size: .7rem; line-height: 13px; font-variant-numeric: tabular-nums; }
 
 /* bottom bar */
 .ride-bar {
-    position: sticky; bottom: 0; z-index: 5;
+    flex: none;
     /* wide: mode | controls | target, one row */
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     grid-template-areas: "mode controls target";
     align-items: center;
     gap: 10px 16px;
-    margin: 0 calc(var(--pad) * -1);
     padding: 10px var(--pad) calc(10px + env(safe-area-inset-bottom));
-    background: var(--bg); /* opaque: the ride scrolls underneath */
+    background: var(--bg);
     border-top: 1px solid var(--border);
 }
 .ride-bar .segmented { grid-area: mode; justify-self: start; }
@@ -728,18 +761,6 @@ target-stepper { grid-area: target; justify-self: end; display: flex; align-item
 .stepper--reading { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stepper--unit { margin-left: 2px; color: var(--muted); font-size: .85rem; font-weight: 400; }
 ride-controls { grid-area: controls; display: flex; align-items: center; justify-content: center; gap: 12px; }
-
-/* during a running workout the bar floats over the bottom of the screen and slides
-   away after a few seconds without input; any tap, mouse move or key brings it back.
-   Paused, stopped and free rides keep it in place. */
-body[data-watch="started"]:not([data-ride-kind="free"]) .ride-bar {
-    position: fixed; left: 0; right: 0;
-    margin: 0;
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, .35);
-    transform: translateY(calc(100% + 24px));
-    transition: transform .2s ease-out;
-}
-body[data-watch="started"]:not([data-ride-kind="free"]) .ride-bar:is([data-shown="true"], :hover, :focus-within) { transform: none; }
 
 
 /* ---------- editor ---------- */
@@ -793,19 +814,12 @@ button.editor--td { cursor: pointer; }
 
     .start-layout { grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); align-items: start; }
 
-    .ride-layout { grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); align-items: start; }
-    body[data-ride-kind="free"] .ride-layout { grid-template-columns: 1fr; }
-    ride-profile svg { height: 150px; }
 
     dialog.sheet {
         margin: auto;
         border-bottom: 1px solid var(--border);
         border-radius: var(--radius-lg);
     }
-}
-
-@media (min-width: 1100px) {
-    .rp-pacing--power { font-size: 7rem; }
 }
 
 @media (max-width: 600px) {
@@ -837,8 +851,7 @@ button.editor--td { cursor: pointer; }
     .ride-bar .segmented { justify-self: stretch; }
     target-stepper { justify-self: stretch; }
     target-stepper .stepper--value { flex: 1; }
-    .tile--value { font-size: 1.5rem; }
-    ride-profile svg { height: 70px; }
+    .facts .tile--value { font-size: 1.5rem; }
 
     /* workout cards: name and Ride side by side, shape below */
     .workout-card .profile { height: 36px; }
