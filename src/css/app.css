@@ -740,27 +740,39 @@ ride-profile svg { width: 100%; flex: 1; min-height: 0; display: block; }
 .rp-profile--now { stroke: var(--text); stroke-width: 2; }
 .rp-profile--times { display: flex; justify-content: space-between; color: var(--muted); font-size: .7rem; line-height: 13px; font-variant-numeric: tabular-nums; }
 
-/* bottom bar */
+/* controls over the pacing box: stop, previous, play/pause, next */
+.rp-controls {
+    position: absolute; inset: 0; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: calc(var(--radius-lg) - 2px);
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    backdrop-filter: blur(3px);
+    opacity: 0; pointer-events: none;
+    transition: opacity .15s;
+}
+pacing-box[data-controls] .rp-controls { opacity: 1; pointer-events: auto; }
+ride-controls { display: flex; align-items: center; justify-content: center; gap: 10px; }
+ride-controls .btn--icon { width: 60px; height: 60px; }
+ride-controls .btn--play { width: 76px; }
+ride-controls .btn--ghost { background: var(--surface-2); }
+ride-controls .btn--icon .icon { width: 22px; height: 22px; }
+
+/* bottom bar: one row, mode and the target stepper, always visible */
 .ride-bar {
     flex: none;
-    /* wide: mode | controls | target, one row */
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    grid-template-areas: "mode controls target";
-    align-items: center;
-    gap: 10px 16px;
-    padding: 10px var(--pad) calc(10px + env(safe-area-inset-bottom));
-    background: var(--bg);
-    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: var(--unit);
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--surface);
+    box-shadow: inset 0 1px 0 var(--border);
 }
-.ride-bar .segmented { grid-area: mode; justify-self: start; }
+.ride-bar .segmented { flex: none; }
 .ride-bar .segmented .btn { min-height: 44px; }
-target-stepper { grid-area: target; justify-self: end; display: flex; align-items: center; gap: 6px; }
-.stepper--value { display: flex; flex-direction: column; align-items: center; min-width: 76px; line-height: 1.1; }
+target-stepper { flex: 1; max-width: 420px; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.stepper--value { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 60px; line-height: 1.1; }
 .stepper--label { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; }
 .stepper--reading { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stepper--unit { margin-left: 2px; color: var(--muted); font-size: .85rem; font-weight: 400; }
-ride-controls { grid-area: controls; display: flex; align-items: center; justify-content: center; gap: 12px; }
 
 
 /* ---------- editor ---------- */
@@ -840,17 +852,6 @@ button.editor--td { cursor: pointer; }
     .app-bar--home { padding: 0 6px; }
     .rider-chip { padding: 0 4px; }
 
-    /* one row each: mode, target, controls */
-    .ride-bar {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "mode" "target" "controls";
-        padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom));
-        gap: 8px;
-    }
-    ride-controls { gap: 12px; }
-    .ride-bar .segmented { justify-self: stretch; }
-    target-stepper { justify-self: stretch; }
-    target-stepper .stepper--value { flex: 1; }
     .facts .tile--value { font-size: 1.5rem; }
 
     /* workout cards: name and Ride side by side, shape below */
@@ -868,11 +869,9 @@ button.editor--td { cursor: pointer; }
 @media (max-width: 420px) {
     .sensor-row { gap: 10px; }
     .ride-bar .segmented--small .btn { padding: 0 8px; }
-    .stepper--value { min-width: 60px; }
     target-stepper { gap: 4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .ride-bar { transition: none !important; }
     * { transition: none !important; animation: none !important; }
 }

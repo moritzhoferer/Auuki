@@ -18,16 +18,33 @@ xf.sub('db:rideKind', (kind) => { document.body.dataset.rideKind = kind; });
 // started | paused | stopped, for parts of the page that change during a ride
 xf.sub('db:watchStatus', (status) => { document.body.dataset.watch = status; showControls(); });
 
-// the bottom bar during a running workout (see app.css): shown on any input,
-// hidden again after a few seconds without one
+// the ride controls over the pacing box (.rp-controls): shown on any input, hidden
+// again after a few seconds without one while riding. They stay open while stopped or
+// paused, and while one of them has keyboard focus. Hidden controls are inert, so Tab
+// never lands on a button nobody can see.
 const controlsHideAfter = 4000;
 let controlsTimer = 0;
+function setControls(open) {
+    const $box      = document.querySelector('pacing-box');
+    const $controls = document.querySelector('.rp-controls');
+    if(!$box || !$controls) return;
+    $box.toggleAttribute('data-controls', open);
+    $controls.inert = !open;
+}
+function hideControls() {
+    const $controls = document.querySelector('.rp-controls');
+    const keep = !equals(document.body.dataset.watch, 'started') ||
+                 exists($controls?.querySelector(':focus-visible'));
+    if(keep) {
+        controlsTimer = setTimeout(hideControls, controlsHideAfter);
+        return;
+    }
+    setControls(false);
+}
 function showControls() {
-    const $bar = document.querySelector('.ride-bar');
-    if(!$bar) return;
-    $bar.dataset.shown = 'true';
+    setControls(true);
     clearTimeout(controlsTimer);
-    controlsTimer = setTimeout(() => { $bar.dataset.shown = 'false'; }, controlsHideAfter);
+    controlsTimer = setTimeout(hideControls, controlsHideAfter);
 }
 for(const type of ['pointermove', 'pointerdown', 'keydown']) {
     document.addEventListener(type, () => {

@@ -181,6 +181,11 @@
                             <span class="rp-stat"><span class="rp-stat--label">In range</span>
                                 <span class="rp-stat--value"><time-in-range>--</time-in-range></span></span>
                         </div>
+                        <!-- stop, previous, play/pause, next: over the box on any input, hidden after 4 s
+                             while riding, always open while stopped or paused (views/ride.js) -->
+                        <div class="rp-controls">
+                            <ride-controls class="ride-controls"></ride-controls>
+                        </div>
                     </pacing-box>
 
                     <next-interval class="ride-next workout-only" data-tile="next">
@@ -210,7 +215,6 @@
                         <button class="btn" data-action="mode-set" data-param="sim" data-pressed="mode:sim" aria-label="Slope mode (S)">SLOPE</button>
                     </div>
                     <target-stepper class="stepper"></target-stepper>
-                    <ride-controls class="ride-controls"></ride-controls>
                 </footer>
             </section>
 
