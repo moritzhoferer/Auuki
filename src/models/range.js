@@ -35,6 +35,26 @@ function stepRange(step = {}, ftp = 0) {
     return {low: 0, high: 0};
 }
 
+// workout intensity in % of the written workout (100 = as written), changed in 1 % steps
+const intensityLimits = {min: 50, max: 150, step: 1};
+
+// Int -> Int, a valid intensity
+function clampIntensity(intensity = 100) {
+    const value = Math.round(Number(intensity));
+    if(!Number.isFinite(value)) return 100;
+    return Math.min(intensityLimits.max, Math.max(intensityLimits.min, value));
+}
+
+// Number (watts), Int (%) -> Int (watts)
+function scaleWatts(watts = 0, intensity = 100) {
+    return Math.round(watts * intensity / 100);
+}
+
+// {low, high}, Int -> {low, high}
+function scaleRange(range = {}, intensity = 100) {
+    return {low: scaleWatts(range.low ?? 0, intensity), high: scaleWatts(range.high ?? 0, intensity)};
+}
+
 function hasRange(range = {}) {
     return range.high > 0;
 }
@@ -111,6 +131,10 @@ function TimeInRange() {
 
 export {
     singleTargetBand,
+    intensityLimits,
+    clampIntensity,
+    scaleWatts,
+    scaleRange,
     toWatts,
     gaugeStops,
     stepRange,

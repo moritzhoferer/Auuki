@@ -126,3 +126,44 @@ describe('<ride-controls>', () => {
         expect(events).toEqual(['ui:ride:toggle', 'ui:watchLap', 'ui:watchBack', 'ui:ride:finish']);
     });
 });
+
+describe('<target-stepper>', () => {
+    let events;
+    let abort;
+
+    afterEach(() => abort.abort());
+
+    beforeEach(async () => {
+        document.body.innerHTML = `<target-stepper></target-stepper>`;
+        events = [];
+        abort = new AbortController();
+        ['ui:intensity-inc', 'ui:intensity-dec', 'ui:power-target-inc', 'ui:slope-target-inc'].forEach(name => {
+            xf.sub(name, () => events.push(name), {signal: abort.signal});
+        });
+        await frame();
+    });
+
+    const $ = (selector) => document.querySelector(selector);
+
+    test('ERG in a workout scales the workout instead of setting watts', async () => {
+        setDb({mode: 'erg', rideKind: 'workout', intensity: 95, powerTarget: 257}); await frame();
+        expect($('.stepper--label').textContent).toBe('Intensity');
+        expect($('.stepper--number').textContent).toBe('95');
+        expect($('.stepper--unit').textContent).toBe('%');
+        $('.stepper--inc').click();
+        $('.stepper--dec').click();
+        expect(events).toEqual(['ui:intensity-inc', 'ui:intensity-dec']);
+    });
+
+    test('free ride ERG and other modes keep their own target', async () => {
+        setDb({mode: 'erg', rideKind: 'free', powerTarget: 200}); await frame();
+        expect($('.stepper--label').textContent).toBe('Target');
+        expect($('.stepper--number').textContent).toBe('200');
+        $('.stepper--inc').click();
+
+        setDb({mode: 'sim', rideKind: 'workout', slopeTarget: 1.5}); await frame();
+        expect($('.stepper--label').textContent).toBe('Slope');
+        $('.stepper--inc').click();
+        expect(events).toEqual(['ui:power-target-inc', 'ui:slope-target-inc']);
+    });
+});

@@ -75,7 +75,8 @@ function KeyboardControls() {
     // Modes Inc/Dec
     xf.sub('key:up', e => {
         if(mode === ControlMode.erg) {
-            xf.dispatch('ui:power-target-inc');
+            // a workout in ERG: the arrows scale the workout (intensity), like the stepper
+            xf.dispatch(document.body.dataset.rideKind === 'workout' ? 'ui:intensity-inc' : 'ui:power-target-inc');
         }
         if(mode === ControlMode.resistance) {
             xf.dispatch('ui:resistance-target-inc');
@@ -86,7 +87,8 @@ function KeyboardControls() {
     });
     xf.sub('key:down', e => {
         if(mode === ControlMode.erg) {
-            xf.dispatch('ui:power-target-dec');
+            // a workout in ERG: the arrows scale the workout (intensity), like the stepper
+            xf.dispatch(document.body.dataset.rideKind === 'workout' ? 'ui:intensity-dec' : 'ui:power-target-dec');
         }
         if(mode === ControlMode.resistance) {
             xf.dispatch('ui:resistance-target-dec');

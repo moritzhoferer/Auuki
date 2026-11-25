@@ -2,7 +2,7 @@ import { equals, exists, empty, first, last, xf, avg, max, toFixed, print, } fro
 import { kphToMps, mpsToKph, timeDiff, pad } from './utils.js';
 import { models } from './models/models.js';
 import { TimerStatus, EventType, } from './activity/enums.js';
-import { stepRange, } from './models/range.js';
+import { stepRange, scaleRange, scaleWatts, clampIntensity, intensityLimits, } from './models/range.js';
 
 const timer = new Worker(new URL('./timer.js', import.meta.url), {type: 'module'});
 
@@ -442,7 +442,7 @@ xf.reg('watch:stepIndex',     (index, db) => {
     const distanceTarget = db.workout.intervals[intervalIndex].steps[index].distance;
     const step           = db.workout.intervals[intervalIndex].steps[index];
 
-    xf.dispatch('ui:power-target-range-set', stepRange(step, db.ftp));
+    setPowerTargets(step, db);
 
     // set targets only, the control mode stays the user's choice
     if(exists(slopeTarget)) {
@@ -456,12 +456,27 @@ xf.reg('watch:stepIndex',     (index, db) => {
     } else {
         xf.dispatch('ui:cadence-target-set', 0);
     }
-    if(exists(powerTarget)) {
-        xf.dispatch('ui:power-target-set', models.ftp.toAbsolute(powerTarget, db.ftp));
-    } else {
-        xf.dispatch('ui:power-target-set', 0);
-    }
 });
+
+// the power target and range of a workout step, scaled by the workout intensity
+function setPowerTargets(step = {}, db) {
+    const intensity = db.intensity ?? 100;
+    xf.dispatch('ui:power-target-range-set', scaleRange(stepRange(step, db.ftp), intensity));
+    xf.dispatch('ui:power-target-set', exists(step.power) ?
+        scaleWatts(models.ftp.toAbsolute(step.power, db.ftp), intensity) : 0);
+}
+
+// workout intensity: − and + in ERG during a workout. Every workout starts at 100 %.
+function setIntensity(value, db) {
+    db.intensity = clampIntensity(value);
+    if(equals(db.watchStatus ?? 'stopped', 'stopped')) return;
+    const step = db.workout?.intervals?.[db.intervalIndex]?.steps?.[db.stepIndex];
+    if(exists(step)) setPowerTargets(step, db);
+}
+xf.reg('ui:intensity-set', (value, db) => setIntensity(value, db));
+xf.reg('ui:intensity-inc', (_, db) => setIntensity((db.intensity ?? 100) + intensityLimits.step, db));
+xf.reg('ui:intensity-dec', (_, db) => setIntensity((db.intensity ?? 100) - intensityLimits.step, db));
+xf.reg('db:workout', (_, db) => { db.intensity = 100; });
 xf.reg('workout:started', (x, db) => db.workoutStatus = 'started');
 xf.reg('workout:stopped', (x, db) => db.workoutStatus = 'stopped');
 xf.reg('workout:done',    (x, db) => db.workoutStatus = 'done');
