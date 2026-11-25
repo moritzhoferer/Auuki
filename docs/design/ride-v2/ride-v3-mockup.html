@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en" data-grid="on"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ride screen v3</title>
+<!-- Design mockup for the Auuki ride screen, v3: the row grid from docs/design/PRINCIPLES.md. Mock data, not app code. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #0d0e10; --panel: #131417; --surface: #1b1d21; --raised: #262930; --line: #2a2d33;
+    --text: #f2f3f5; --muted: #a3a9b3; --dim: #4a4f58; --blue: #9ab4ff;
+    --in: #3fd37f; --near: #f6b73c; --out: #ff5d52;
+    --r-ctl: 6px; --pad: 10px; --r-surf: calc(var(--r-ctl) + var(--pad)); --r-tile: calc(var(--r-ctl) + 8px);
+    --unit: 64px; --gap: 8px;
+    --gridc: transparent;
+    color-scheme: dark;
+}
+:root[data-grid="on"] { --gridc: rgba(154,180,255,.09); }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.35 Inter, system-ui, sans-serif; }
+button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.cap { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.gridbg { background-image: repeating-linear-gradient(to bottom, var(--gridc) 0 var(--unit), transparent var(--unit) calc(var(--unit) + var(--gap)));
+    background-origin: content-box; background-clip: content-box; }
+
+/* page chrome */
+.page { padding: 24px 32px 64px; display: flex; flex-direction: column; gap: 36px; }
+.intro { max-width: 980px; display: flex; flex-direction: column; gap: 10px; }
+h1 { margin: 0; font-size: 22px; }
+.intro p, .intro li { margin: 0; color: var(--muted); }
+.intro b, .sec p b { color: var(--text); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 5; padding: 10px 0; background: var(--bg); }
+.toolbar .seg button { padding: 0 12px; }
+.sec { display: flex; flex-direction: column; gap: 12px; }
+.sec h2 { margin: 0; font-size: 18px; }
+.sec h2 small { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
+.sec > p { margin: 0; color: var(--muted); max-width: 980px; }
+.shots { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.shot { display: flex; flex-direction: column; gap: 8px; }
+.shot-cap { font-size: 13px; color: var(--muted); max-width: 400px; } .shot-cap b { color: var(--text); }
+.cat { display: flex; flex-direction: column; gap: 6px; }
+.cat-item { padding: 0; }
+.cat .shot-cap code { color: var(--blue); }
+.rowlbl { font-size: 11px; color: var(--blue); }
+
+/* one screen */
+.frame { width: var(--w); height: var(--h); container-type: size; background: var(--panel); outline: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.top { height: 48px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 12px; box-shadow: inset 0 -1px 0 var(--line); }
+.logo { width: 26px; height: 26px; flex: none; }
+.wname { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.spacer { flex: 1; }
+.sensors { display: flex; gap: 7px; flex: none; }
+.sensors svg { width: 16px; height: 16px; stroke: var(--dim); }
+.sensors svg.on { stroke: #e6e8eb; }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--blue); color: #17181b; font-weight: 700; display: grid; place-items: center; font-size: 13px; flex: none; }
+
+.ride { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: var(--unit);
+    gap: var(--gap); align-content: start; padding: 10px 12px; }
+.ride.wide { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); column-gap: 12px; padding: 10px 16px; }
+
+/* interval: flat, 2 rows */
+.interval { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 2px; min-width: 0; }
+.interval-head { display: flex; justify-content: space-between; align-items: baseline; }
+.interval-head .el { font-size: 13px; color: var(--muted); }
+.countdown { display: flex; align-items: baseline; gap: 8px; }
+.countdown .num { font-size: 52px; line-height: 1; font-weight: 800; }
+.wide .countdown .num { font-size: 64px; }
+.countdown .lbl { font-size: 15px; font-weight: 600; color: var(--muted); }
+.ending .countdown .num { color: var(--near); }
+.bar6 { height: 6px; border-radius: 3px; background: var(--raised); overflow: hidden; }
+.bar6 i { display: block; height: 100%; background: #d6d9de; }
+.nextline { display: flex; gap: 8px; align-items: baseline; font-size: 14px; }
+.nextline .what { flex: 1; font-weight: 600; }
+.nextline .tw { font-weight: 700; color: var(--blue); }
+.ending .nextline .cap, .ending .nextline .what { color: var(--near); }
+
+/* pacing box, 4 steps */
+.pacing { --c: var(--in); --numsz: 104px; --tvl: 20px; --zh: 20px; --st: 13px; --sv: 20px;
+    position: relative; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 10%, var(--surface));
+    border-radius: var(--r-surf); padding: var(--pad) calc(var(--pad) + 2px); display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+.pacing[data-step="s"]  { --numsz: 72px;  --tvl: 18px; --zh: 16px; --st: 12px; --sv: 18px; }
+.pacing[data-step="l"]  { --numsz: 148px; --tvl: 24px; --zh: 26px; --st: 15px; --sv: 24px; }
+.pacing[data-step="xl"] { --numsz: 240px; --tvl: 28px; --zh: 34px; --st: 18px; --sv: 30px; padding: 16px 20px; }
+.pacing[data-k="near"] { --c: var(--near); } .pacing[data-k="out"] { --c: var(--out); }
+.status { display: flex; justify-content: space-between; font-size: var(--st); font-weight: 800; letter-spacing: .06em; color: var(--c); }
+.status .hint { font-weight: 600; letter-spacing: 0; }
+.power { display: flex; align-items: baseline; gap: 8px; }
+.power .num { font-size: var(--numsz); line-height: .9; font-weight: 800; color: var(--c); }
+.power .unit { font-size: calc(var(--st) + 1px); color: #c9cdd3; white-space: nowrap; }
+.gauge { position: relative; height: calc(var(--tvl) + 4px + var(--zh) + 18px); }
+.gauge .zones { position: absolute; left: 0; right: 0; top: calc(var(--tvl) + 4px); height: var(--zh); display: flex; border-radius: var(--r-ctl); overflow: hidden; }
+.gauge .zones i:nth-child(1), .gauge .zones i:nth-child(5) { flex: 15; background: rgba(255,93,82,.38); }
+.gauge .zones i:nth-child(2), .gauge .zones i:nth-child(4) { flex: 15; background: rgba(246,183,60,.45); }
+.gauge .zones i:nth-child(3) { flex: 40; background: rgba(63,211,127,.7); }
+.gauge .tick { position: absolute; top: var(--tvl); width: 2px; height: calc(var(--zh) + 8px); margin-left: -1px; background: var(--text); }
+.gauge .tv { position: absolute; top: 0; transform: translateX(-50%); font-size: calc(var(--tvl) - 4px); line-height: var(--tvl); font-weight: 700; }
+.gauge .needle { position: absolute; top: calc(var(--tvl) + 1px); width: 6px; height: calc(var(--zh) + 6px); margin-left: -3px; border-radius: 3px; background: #fff; box-shadow: 0 0 0 2px var(--panel); }
+.gauge .avg { position: absolute; top: calc(var(--tvl) + var(--zh) + 9px); width: 10px; height: 10px; margin-left: -5px; transform: rotate(45deg); box-shadow: 0 0 0 2px var(--panel); }
+.stats { display: flex; gap: 18px; align-items: baseline; font-size: var(--st); color: var(--muted); }
+.stats b { font-size: var(--sv); color: var(--text); margin-left: 4px; }
+.stats .d { display: inline-block; width: 9px; height: 9px; transform: rotate(45deg); margin-right: 6px; }
+.overlay { position: absolute; inset: 0; border-radius: calc(var(--r-surf) - 2px); background: rgba(12,13,15,.8); backdrop-filter: blur(3px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.pacing:hover .overlay, .pacing.show .overlay { opacity: 1; pointer-events: auto; }
+.overlay .btns { display: flex; gap: 10px; }
+.overlay button { width: 60px; height: 60px; border-radius: var(--r-ctl); background: var(--raised); display: grid; place-items: center; }
+.overlay button.primary { background: var(--text); color: #17181b; width: 76px; }
+.overlay button svg { width: 22px; height: 22px; }
+.overlay .note { font-size: 12px; color: var(--muted); }
+
+/* fields, 2 steps */
+.fields { display: grid; grid-auto-rows: var(--unit); gap: var(--gap); min-width: 0; }
+.field { background: var(--surface); border-radius: var(--r-tile); padding: 8px 10px; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.field .cap { font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 5px; align-items: center; }
+.field .cap svg { width: 12px; height: 12px; stroke: var(--muted); flex: none; }
+.field .v { font-size: 24px; font-weight: 700; line-height: 1.15; }
+.field .u { font-size: 12px; color: var(--muted); margin-left: 3px; font-weight: 500; }
+.field.m { grid-row: span 2; padding: 12px 14px; justify-content: space-between; }
+.field.m .cap { font-size: 12px; } .field.m .cap svg { width: 14px; height: 14px; }
+.field.m .v { font-size: 52px; line-height: 1; } .field.m .u { font-size: 15px; }
+.field.ride .cap svg { stroke: var(--dim); }
+
+.next { background: var(--surface); border: 2px solid transparent; border-radius: var(--r-surf); padding: 0 var(--pad); display: flex; align-items: center; gap: 10px; min-width: 0; }
+.next .what { font-weight: 700; font-size: 17px; flex: 1; }
+.next .tw { font-weight: 700; font-size: 17px; color: var(--blue); }
+.ending .next { border-color: var(--near); }
+
+.profile { background: var(--surface); border-radius: var(--r-surf); padding: var(--pad); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.profile svg { width: 100%; flex: 1; min-height: 0; display: block; border-radius: 3px; }
+.profile .ends { display: flex; justify-content: space-between; font-size: 11px; line-height: 13px; color: var(--muted); }
+
+.ctl { height: 64px; flex: none; display: flex; gap: 8px; padding: 10px 12px; box-shadow: inset 0 1px 0 var(--line); background: var(--surface); }
+.wide + .ctl, .ctl.center { justify-content: center; }
+.seg { display: flex; background: var(--raised); border-radius: calc(var(--r-ctl) + 3px); padding: 3px; flex: none; }
+.seg button { height: 38px; min-width: 52px; border-radius: var(--r-ctl); background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; }
+.seg button[aria-pressed="true"] { background: #3a3e46; color: var(--text); }
+.stepper { flex: 1; display: flex; gap: 6px; min-width: 0; max-width: 420px; }
+.stepper button { width: 44px; height: 44px; border-radius: var(--r-ctl); background: var(--raised); font-size: 22px; flex: none; }
+.stepper .val { flex: 1; height: 44px; border-radius: var(--r-ctl); background: var(--text); color: #17181b; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.stepper .val b { font-size: 20px; font-weight: 800; } .stepper .val span { font-size: 13px; font-weight: 700; }
+.spare { font-size: 11px; color: var(--blue); text-align: center; align-self: end; }
+
+/* carry-over examples */
+.list { width: 400px; padding: 10px 12px; background: var(--panel); outline: 1px solid var(--line); border-radius: 12px; display: grid; grid-auto-rows: var(--unit); gap: var(--gap); }
+.list h3 { margin: 0; font-size: 15px; align-self: end; padding: 0 2px 4px; }
+.srow { background: var(--surface); border-radius: var(--r-surf); padding: var(--pad); display: flex; align-items: center; gap: 12px; }
+.srow svg { width: 22px; height: 22px; stroke: #e6e8eb; flex: none; }
+.srow .t { flex: 1; min-width: 0; } .srow .t b { display: block; } .srow .t span { font-size: 12px; color: var(--muted); }
+.btn { height: 44px; padding: 0 14px; border-radius: var(--r-ctl); background: var(--raised); font-weight: 600; flex: none; }
+.btn.primary { background: var(--blue); color: #17181b; }
+.wcard { grid-row: span 3; background: var(--surface); border-radius: var(--r-surf); padding: var(--pad); display: flex; flex-direction: column; gap: 8px; }
+.wcard .h { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px; }
+.wcard .h b { font-size: 16px; } .wcard .h span { font-size: 12px; color: var(--muted); }
+.wcard svg { flex: 1; width: 100%; }
+.wcard .btn { align-self: stretch; }
+</style>
+</head><body>
+<div class="page">
+  <div class="intro">
+    <h1>Ride screen v3: the row grid</h1>
+    <p>Built on <b>docs/design/PRINCIPLES.md</b>: one 64 px unit (a 44 px button plus 10 px padding on each side), 8 px gaps, every tile <b>n × 72 − 8</b> px high. Components come in <b>steps</b> (S, M, L, XL) instead of scaling. The layout counts how many rows fit and gives the spare rows to the pacing box first.</p>
+    <p>The faint blue bands are the rows. Turn them off to judge the look.</p>
+  </div>
+  <div class="toolbar">
+    <span class="cap">Grid rows</span>
+    <div class="seg" id="gsel"><button data-g="on" aria-pressed="true">Show</button><button data-g="off" aria-pressed="false">Hide</button></div>
+  </div>
+  <div id="content"></div>
+</div>
+
+<script>
+const ftp = 280, tolPct = 7;
+const W = (f) => Math.round(ftp * f);
+const lo = W(.88), hi = W(.94), tol = Math.round(ftp * tolPct / 100);
+const dmin = lo - 3 * tol, dmax = hi + 3 * tol;
+const ZONES = [[dmin, 0], [lo - tol, 15], [lo, 30], [hi, 70], [hi + tol, 85], [dmax, 100]];
+const pos = (v) => { if(v <= dmin) return 0; if(v >= dmax) return 100;
+    for(let i = 1; i < ZONES.length; i++) { const [w0, p0] = ZONES[i-1], [w1, p1] = ZONES[i]; if(v <= w1) return p0 + (v - w0) / (w1 - w0) * (p1 - p0); } return 100; };
+const pad = (n) => String(n).padStart(2, '0');
+const clock = (s) => pad(Math.floor(s / 60)) + ':' + pad(Math.round(s % 60));
+const hms = (s) => Math.floor(s / 3600) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(Math.round(s % 60));
+const judge = (v) => { if(v >= lo && v <= hi) return {k: 'in', label: '● IN RANGE', hint: 'hold it'};
+    const above = v > hi, d = above ? v - hi : lo - v, k = d <= tol ? 'near' : 'out';
+    return {k, label: (above ? '▲ ' : '▼ ') + (k === 'near' ? 'SLIGHTLY ' : 'TOO ') + (above ? 'HIGH' : 'LOW'), hint: above ? 'ease off' : 'push'}; };
+const COLOR = {in: 'var(--in)', near: 'var(--near)', out: 'var(--out)'};
+const svgI = (d, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICON = {
+    trainer: '<circle cx="8" cy="9" r="5.5"/><circle cx="8" cy="9" r="1"/><path d="M8 9h7"/><rect x="15" y="6" width="6" height="6" rx="1.5"/><path d="M8 9L4 21M8 9l4 12M2 21h20M18 12v9"/>',
+    hr: '<path d="M12 20s-8-4.6-8-10.5A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 8 2.5C20 15.4 12 20 12 20z"/><path d="M7 12h2.5l1.5-2.5 2 5 1.5-2.5H17"/>',
+    pm: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+    cad: '<circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="1.5"/><path d="M10 10l6 9M14 19h5"/>',
+    smo2: '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',
+    core: '<path d="M10 14V5a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0z"/><path d="M12 9v8"/>',
+    ctrl: '<rect x="3" y="8" width="18" height="8" rx="4"/><circle cx="8" cy="12" r="1.2"/><circle cx="16" cy="12" r="1.2"/>',
+    ride: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+};
+const T = {
+    stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    prev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5l-9 7 9 7z"/><path d="M5 5v14"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M8 5v14M16 5v14"/></svg>',
+    next: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5l9 7-9 7z"/><path d="M19 5v14"/></svg>',
+};
+const LOGO = `<svg class="logo" viewBox="0 0 26 26"><rect width="26" height="26" rx="7" fill="#f6b73c"/><path d="M7 20l6-14 6 14M9.5 15h7" stroke="#17181b" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const FIELDS = {
+    hr: ['Heart rate', 'bpm', 'hr'], cad: ['Cadence', 'rpm', 'cad'], smo2: ['SmO2', '%', 'smo2'], thb: ['THb', 'g/dl', 'smo2'],
+    core: ['Core temp', '°C', 'core'], skin: ['Skin temp', '°C', 'core'],
+    avgp: ['Avg power', 'W', 'pm', 1], kj: ['Energy', 'kJ', 'ride', 1], dist: ['Distance', 'km', 'ride', 1], spd: ['Speed', 'km/h', 'ride', 1],
+};
+const RIDE_VALS = {avgp: 231, kj: 742, dist: '27.4', spd: '30.1'};
+
+const plan = [[2.5,.5,.5],[2.5,.6,.6],[2.5,.7,.7],[2.5,.75,.75],[20,.88,.94],[5,.5,.5],[20,.88,.94],[5,.5,.5],[20,.88,.94],[10,.45,.45]];
+const total = plan.reduce((a, s) => a + s[0], 0) * 60;
+const curStart = 35 * 60, curDur = 20 * 60;
+
+// ---- the layout rule (PRINCIPLES.md §6) ----
+const STEP = 72, PACING = [8, 6, 4, 3], STEPNAME = {3: 's', 4: 'm', 6: 'l', 8: 'xl'};
+const rowsFor = (h) => Math.floor((h - 48 - 64 - 20 + 8) / STEP);
+const perRow = (width, min) => Math.max(1, Math.floor((width + 8) / (min + 8)));
+const rowsOf = (g) => g.keys.length ? Math.ceil(g.keys.length / g.cols) * (g.size === 'm' ? 2 : 1) : 0;
+
+function layout(w, h, prim, sec) {
+    const R = rowsFor(h), items = [];
+    if(w < 700) {
+        const c = perRow(w - 24, 104);
+        let fr = Math.ceil(prim.length / c), p = 0;
+        while(!(p = PACING.find(x => 3 + fr + x <= R)) && fr > 0) fr--;
+        let spare = R - (3 + fr + p), prof = 1;
+        if(spare >= 1) { prof = 2; spare--; }
+        let r = 1;
+        const add = (key, span, extra = {}) => { items.push({key, col: 1, row: r, span, ...extra}); r += span; };
+        add('interval', 2, {nextline: true}); add('pacing', p);
+        if(fr) add('fields', fr, {group: {size: 's', keys: prim.slice(0, fr * c), cols: c}});
+        add('profile', prof);
+        return {R, wide: false, items, spare, used: r - 1};
+    }
+    const rw = (w - 32 - 12) / 2.2;
+    const p = PACING.find(x => 2 + x <= R) || 3;
+    items.push({key: 'interval', col: 1, row: 1, span: 2}, {key: 'pacing', col: 1, row: 3, span: p});
+    const cS = perRow(rw, 104), cM = perRow(rw, 150), avail = R - 3;
+    const options = [
+        [{size: 'm', keys: [...prim, ...sec], cols: cM}],
+        [{size: 'm', keys: prim, cols: cM}, {size: 's', keys: sec, cols: cS}],
+        [{size: 's', keys: [...prim, ...sec], cols: cS}],
+        [{size: 'm', keys: prim, cols: cM}],
+        [{size: 's', keys: prim, cols: cS}],
+    ];
+    const groups = options.find(o => o.reduce((a, g) => a + rowsOf(g), 0) <= avail) || options[4];
+    let r = 1;
+    items.push({key: 'next', col: 2, row: r++, span: 1});
+    for(const g of groups) { const n = rowsOf(g); if(n) { items.push({key: 'fields', col: 2, row: r, span: n, group: g}); r += n; } }
+    let left = avail - (r - 2), prof = 2;
+    if(left >= 1) { prof = 3; left--; }
+    items.push({key: 'profile', col: 2, row: r, span: prof});
+    return {R, wide: true, items, spare: Math.max(0, R - Math.max(2 + p, r - 1 + prof)), used: Math.max(2 + p, r - 1 + prof), pacing: p};
+}
+
+// ---- components ----
+function intervalHtml(s, nextline) {
+    const el = curDur - s.left;
+    return `<div class="interval-head"><span class="cap" style="font-size:12px;color:#c9cdd3">Effort 2 / 3</span><span class="el num">${clock(el)} / 20:00</span></div>
+        <div class="countdown"><span class="num">${clock(s.left)}</span><span class="lbl">left</span></div>
+        <div class="bar6"><i style="width:${(el / curDur * 100).toFixed(1)}%"></i></div>
+        ${nextline ? `<div class="nextline"><span class="cap">Next</span><span class="what">Recovery · 5:00</span><span class="tw num">${W(.5)} W</span></div>` : ''}`;
+}
+function pacingInner(s) {
+    const p3 = W(s.p3), avg = W(s.avg), st = judge(p3), av = judge(avg);
+    return `<div class="status"><span>${st.label}</span><span class="hint">${st.hint}</span></div>
+        <div class="power"><span class="num">${p3}</span><span class="unit">W · 3 s</span></div>
+        <div class="gauge"><div class="zones"><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="tick" style="left:${pos(lo)}%"></span><span class="tick" style="left:${pos(hi)}%"></span>
+          <span class="tv num" style="left:${pos(lo)}%">${lo}</span><span class="tv num" style="left:${pos(hi)}%">${hi}</span>
+          <span class="needle" style="left:${pos(p3)}%"></span><span class="avg" style="left:${pos(avg)}%;background:${COLOR[av.k]}"></span></div>
+        <div class="stats"><span><i class="d" style="background:${COLOR[av.k]}"></i>Interval avg<b class="num" style="color:${COLOR[av.k]}">${avg}</b></span><span>In range<b class="num">${s.tir}%</b></span></div>
+        <div class="overlay"><div class="btns"><button aria-label="Stop">${T.stop}</button><button aria-label="Previous interval">${T.prev}</button>
+          <button class="primary" aria-label="Pause">${T.pause}</button><button aria-label="Next interval">${T.next}</button></div><span class="note">hides after 4 s</span></div>`;
+}
+const pacingAttrs = (s, span) => `data-step="${STEPNAME[span]}" data-k="${judge(W(s.p3)).k}"`;
+function fieldsHtml(g, vals) {
+    return g.keys.map(k => { const [label, unit, icon, ride] = FIELDS[k];
+        return `<div class="field ${g.size} ${ride ? 'ride' : ''}"><div class="cap">${svgI(ICON[icon])}${label}</div>
+            <div><span class="v num">${vals[k] ?? RIDE_VALS[k]}</span><span class="u">${unit}</span></div></div>`; }).join('');
+}
+function profileHtml(s) {
+    const tEl = curStart + curDur - s.left;
+    let t = 0, out = '';
+    for(const g of plan) {
+        const a = t * 60, e = (t + g[0]) * 60; t += g[0];
+        const x = a / total * 1000, w = (e - a) / total * 1000 - 3, h = g[2] / 1.05 * 96, y = 100 - h;
+        const done = Math.max(0, Math.min(1, (tEl - a) / (e - a)));
+        out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="#343840"/>`;
+        if(done > 0) out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(w * done).toFixed(1)}" height="${h.toFixed(1)}" fill="#5f6878"/>`;
+    }
+    const pts = [];
+    for(let x = 0; x <= tEl; x += 10) {
+        let acc = 0, g = plan[plan.length - 1];
+        for(const seg of plan) { if(x < (acc + seg[0]) * 60) { g = seg; break; } acc += seg[0]; }
+        let f = (g[1] + g[2]) / 2 + .025 * Math.sin(x / 37) + .018 * Math.sin(x / 11 + 1.3) + .01 * Math.sin(x / 4.7);
+        if(tEl - x < 40) { const k = 1 - (tEl - x) / 40; f = f * (1 - k) + s.p3 * k; }
+        pts.push((x / total * 1000).toFixed(1) + ',' + (100 - f / 1.05 * 96).toFixed(1));
+    }
+    return `<svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">${out}
+        <polyline points="${pts.join(' ')}" fill="none" stroke="#9ab4ff" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+        <rect x="${(tEl / total * 1000).toFixed(1)}" y="0" width="3" height="100" fill="#f2f3f5"/></svg>
+        <div class="ends"><span class="num">${hms(tEl)} elapsed</span><span class="num">${hms(total - tEl)} left</span></div>`;
+}
+const nextHtml = () => `<span class="cap">Up next</span><span class="what">Recovery · 5:00</span><span class="tw num">${W(.5)} W</span>`;
+
+function screen(s, w, h) {
+    const L = layout(w, h, s.fields, s.wideExtra ?? ['avgp', 'kj', 'dist', 'spd']);
+    const conn = new Set(s.sensors);
+    const icons = ['trainer','hr','pm','cad','smo2','core','ctrl'].map(k => svgI(ICON[k], conn.has(k) ? 'on' : '')).join('');
+    const place = (it) => `grid-column:${it.col};grid-row:${it.row} / span ${it.span}`;
+    const body = L.items.map(it => {
+        if(it.key === 'interval') return `<div class="interval" style="${place(it)}">${intervalHtml(s, it.nextline)}</div>`;
+        if(it.key === 'pacing') return `<div class="pacing ${s.show ? 'show' : ''}" ${pacingAttrs(s, it.span)} style="${place(it)}">${pacingInner(s)}</div>`;
+        if(it.key === 'fields') return `<div class="fields" style="${place(it)};grid-template-columns:repeat(${Math.min(it.group.cols, it.group.keys.length)},minmax(0,1fr))">${fieldsHtml(it.group, s.vals)}</div>`;
+        if(it.key === 'next') return `<div class="next" style="${place(it)}">${nextHtml()}</div>`;
+        if(it.key === 'profile') return `<div class="profile" style="${place(it)}">${profileHtml(s)}</div>`;
+    }).join('');
+    const info = `${L.R} rows · ${L.items.filter(i => i.key !== 'interval').map(i => `${i.key === 'fields' ? 'fields ' + i.group.size.toUpperCase() : i.key === 'pacing' ? 'pacing ' + STEPNAME[i.span].toUpperCase() : i.key} ${i.span}`).join(' · ')} · spare ${L.R - L.used}`;
+    return {info, html: `<div class="frame" style="--w:${w}px;--h:${h}px">
+      <header class="top">${LOGO}<span class="wname">Sweet spot 3×20′</span><span class="spacer"></span><div class="sensors">${icons}</div><span class="avatar">A</span></header>
+      <div class="ride gridbg ${L.wide ? 'wide' : ''} ${s.left <= 5 ? 'ending' : ''}">${body}</div>
+      <footer class="ctl ${L.wide ? 'center' : ''}"><div class="seg"><button aria-pressed="false">ERG</button><button aria-pressed="false">RES</button><button aria-pressed="true">SLOPE</button></div>
+        <div class="stepper"><button aria-label="Decrease slope">−</button><div class="val"><b class="num">${s.slope}</b><span>%</span></div><button aria-label="Increase slope">+</button></div></footer>
+    </div>`};
+}
+
+// ---- scenarios ----
+const vals = (hr, cad) => ({hr, cad, smo2: 54, thb: '12.1', core: '38.2', skin: '34.6'});
+const FEW = {sensors: ['trainer', 'hr'], fields: ['hr', 'cad']};
+const MANY = {sensors: ['trainer', 'hr', 'cad', 'smo2', 'core'], fields: ['hr', 'cad', 'smo2', 'thb', 'core', 'skin']};
+const S = {
+    A: {name: 'A · In range', sub: 'trainer + heart rate', left: 462, p3: .915, avg: .897, tir: 88, slope: '1.0', vals: vals(152, 91), ...FEW},
+    B: {name: 'B · Too high, controls open', sub: 'trainer + heart rate', left: 665, p3: 1.015, avg: .918, tir: 74, slope: '1.5', vals: vals(158, 96), show: true, ...FEW},
+    C: {name: 'C · Change in 4 s', sub: 'many sensors', left: 4, p3: .862, avg: .902, tir: 91, slope: '1.0', vals: vals(155, 88), ...MANY},
+};
+
+const shotHtml = (k, w, h, extra = '') => { const r = screen(S[k], w, h);
+    return `<div class="shot" data-w="${w}"><div class="shot-cap"><b>${S[k].name}</b> · ${S[k].sub}${extra}<br><span class="rowlbl">${r.info}</span></div><div class="scale">${r.html}</div></div>`; };
+
+// catalogue: each component in each step, at its row height
+const span = (n) => n * STEP - 8;
+const catItem = (label, n, width, inner) => `<div class="cat"><div class="shot-cap"><b>${label}</b> · ${n} row${n > 1 ? 's' : ''} = <code>${span(n)} px</code></div>
+    <div class="cat-item gridbg" style="width:${width}px;height:${span(n)}px;display:grid;grid-auto-rows:64px;gap:8px">${inner}</div></div>`;
+const sA = S.A;
+const catalogue = [
+    ...[3, 4, 6].map(n => catItem(`Pacing ${STEPNAME[n].toUpperCase()}`, n, 376, `<div class="pacing" ${pacingAttrs(sA, n)} style="grid-row:1 / span ${n}">${pacingInner(sA)}</div>`)),
+    catItem('Pacing XL', 8, 640, `<div class="pacing" ${pacingAttrs(sA, 8)} style="grid-row:1 / span 8">${pacingInner(sA)}</div>`),
+].join('');
+const catalogue2 = [
+    catItem('Interval (narrow)', 2, 376, `<div class="interval" style="grid-row:1 / span 2">${intervalHtml(sA, true)}</div>`),
+    catItem('Field S', 1, 376, `<div class="fields" style="grid-template-columns:repeat(3,1fr)">${fieldsHtml({size: 's', keys: ['hr', 'cad', 'smo2']}, sA.vals)}</div>`),
+    catItem('Field M', 2, 376, `<div class="fields" style="grid-row:1 / span 2;grid-template-columns:repeat(2,1fr)">${fieldsHtml({size: 'm', keys: ['hr', 'cad']}, sA.vals)}</div>`),
+    catItem('Up next (wide)', 1, 376, `<div class="next">${nextHtml()}</div>`),
+    ...[1, 2, 3].map(n => catItem(`Profile`, n, 376, `<div class="profile" style="grid-row:1 / span ${n}">${profileHtml(sA)}</div>`)),
+].join('');
+
+const hrIcon = svgI(ICON.hr), trIcon = svgI(ICON.trainer), smIcon = svgI(ICON.smo2);
+const carry = `
+  <div class="cat"><div class="shot-cap"><b>Settings: sensors</b> · 1 row each</div>
+    <div class="list gridbg"><h3>Sensors</h3>
+      <div class="srow">${trIcon}<div class="t"><b>Smart trainer</b><span>Tacx Neo · connected</span></div><button class="btn">Disconnect</button></div>
+      <div class="srow">${hrIcon}<div class="t"><b>Heart rate</b><span>HR strap · 86 %</span></div><button class="btn">Disconnect</button></div>
+      <div class="srow">${smIcon}<div class="t"><b>Muscle oxygen</b><span>not connected</span></div><button class="btn primary">Connect</button></div>
+    </div></div>
+  <div class="cat"><div class="shot-cap"><b>Workouts: a card</b> · 3 rows, next to others in a grid</div>
+    <div class="list gridbg">
+      <div class="wcard"><div class="h"><b>Sweet spot 3×20′</b><span>Today · 1:30 · Sweet spot</span></div>
+        ${profileHtml(sA).split('<div class="ends">')[0].replace('<rect x="' + (((curStart + curDur - sA.left) / total) * 1000).toFixed(1), '<rect opacity="0" x="0')}
+        <button class="btn primary">Ride</button></div>
+    </div></div>
+  <div class="cat"><div class="shot-cap"><b>Rides: the list</b> · 1 row per ride</div>
+    <div class="list gridbg"><h3>Recent rides</h3>
+      <div class="srow"><div class="t"><b>Sweet spot 3×20′</b><span>Mon 23 · 1:30 · 231 W</span></div><span class="cap" style="color:var(--in)">✓ Garmin</span><button class="btn">Upload</button></div>
+      <div class="srow"><div class="t"><b>Free ride</b><span>Sat 21 · 0:45 · 188 W</span></div><span class="cap" style="color:var(--in)">✓ Garmin</span><button class="btn">Upload</button></div>
+    </div></div>`;
+
+document.getElementById('content').innerHTML = `
+  <section class="sec"><h2>1 · The building blocks<small>each component in its steps, on the row grid</small></h2>
+    <p>The pacing box exists in four sizes, not as one box that stretches. Each step has its own number size (72, 104, 160, 240 px) and gauge. The other tiles have one to three steps. Everything is a whole number of rows.</p>
+    <div class="shots">${catalogue}</div><div class="shots">${catalogue2}</div></section>
+  <section class="sec"><h2>2 · 400 px split view<small>the main target</small></h2>
+    <p>One column. Interval (2 rows, with the next interval as a line) → pacing box → fields → profile. <b>The pacing box takes the biggest step that leaves room for the rest:</b> with only heart rate and cadence it gets L (6 rows); with six sensor fields it drops to M (4 rows), and the profile gets a second row. 400 × 800 fits one row less and still shows everything.</p>
+    <div class="shots">${shotHtml('A', 400, 880)}${shotHtml('B', 400, 880)}${shotHtml('C', 400, 880)}</div>
+    <div class="shots">${shotHtml('A', 400, 800)}${shotHtml('C', 400, 800)}</div></section>
+  <section class="sec"><h2>3 · 800 × 700<small>half a laptop screen, two columns</small></h2>
+    <p>Left: interval + pacing L. Right: up next, fields, profile. Rows run straight across both columns. Sensor fields go medium (M, 2 rows) when they fit. Spare rows on the right take ride totals (avg power, energy, distance, speed): real data, not padding.</p>
+    <div class="shots">${shotHtml('A', 800, 700)}${shotHtml('C', 800, 700)}</div></section>
+  <section class="sec"><h2>4 · 1440 × 900<small>full screen, shown scaled to fit</small></h2>
+    <p>Same columns, pacing XL (8 rows, 240 px number). The fields become medium tiles, four per row. Both columns end on the same row.</p>
+    <div class="shots">${shotHtml('A', 1440, 900)}</div><div class="shots">${shotHtml('C', 1440, 900)}</div></section>
+  <section class="sec"><h2>5 · Carried over to the other screens<small>same unit, same corners</small></h2>
+    <p>Lists may scroll, but each row is one unit: a 44 px button plus 10 px padding. A workout card is 3 rows, so cards in a grid line up with each other and with the ride screen.</p>
+    <div class="shots">${carry}</div></section>`;
+
+function fit() {
+    const avail = document.querySelector('.page').clientWidth - 8;
+    document.querySelectorAll('.shot[data-w]').forEach($s => { $s.querySelector('.scale').style.zoom = Math.min(1, avail / (+$s.dataset.w + 2)); });
+}
+addEventListener('resize', fit); fit();
+document.getElementById('gsel').addEventListener('click', (e) => { const $b = e.target.closest('button'); if(!$b) return;
+    document.documentElement.dataset.grid = $b.dataset.g; document.querySelectorAll('#gsel button').forEach(b => b.setAttribute('aria-pressed', b === $b)); });
+</script>
+</body></html>
