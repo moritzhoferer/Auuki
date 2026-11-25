@@ -8,7 +8,7 @@ import {
     Di2Buttons,
     toControlMessages,
 } from '../../src/ble/di2/di2.js';
-import { openBikeControl } from '../../src/ble/obc/controls.js';
+import '../../src/ble/obc/controls.js';
 
 // frames captured from an RDR8150 (fw 4.1.0.0) on 2026-11-25
 function frame(hex) {
@@ -89,47 +89,48 @@ describe('toControlMessages', () => {
         [1, 'short', [pressed('decreaseDifficulty')]],
         [2, 'long', [pressed('skipInterval')]],
         [1, 'long', [pressed('previousInterval')]],
-        [1, 'double', [pressed('togglePause')]],
-        [2, 'double', [pressed('togglePause')]],
+        [1, 'double', []],
+        [2, 'double', []],
         [1, 'held', []],
         [1, 'release', []],
         [3, 'short', []],
     ])('channel %i %s', (channel, press, expected) => {
         expect(toControlMessages([{channel, press}])).toEqual(expected);
     });
-});
 
-describe('togglePause', () => {
-    const toggle = [{action: 'togglePause', state: 'pressed'}];
-    const events = (watchStatus) => openBikeControl
-        .controlsFor(toggle, {mode: 'erg', watchStatus})
-        .map((a) => a.event);
-
-    test('pauses a running workout', () => {
-        expect(events('started')).toEqual(['ui:watchPause']);
-    });
-
-    test('resumes a paused workout', () => {
-        expect(events('paused')).toEqual(['ui:watchResume']);
-    });
-
-    test('does not start a stopped workout', () => {
-        expect(events('stopped')).toEqual([]);
+    test.each([
+        [1, 'short', [pressed('increaseDifficulty')]],
+        [2, 'short', [pressed('decreaseDifficulty')]],
+        [1, 'long', [pressed('skipInterval')]],
+        [2, 'long', [pressed('previousInterval')]],
+    ])('swapped: channel %i %s', (channel, press, expected) => {
+        expect(toControlMessages([{channel, press}], {swap: true})).toEqual(expected);
     });
 });
 
 describe('ble:di2:buttonState', () => {
-    test('right (channel 2) short press raises the power target in erg', () => {
-        xf.create({mode: 'erg', watchStatus: 'started'});
+    function count(event, sources, hex) {
+        xf.create({mode: 'erg', watchStatus: 'started', sources});
 
-        let notches = 0;
-        xf.reg('ui:power-target-inc', () => { notches += 1; });
+        let n = 0;
+        const abort = new AbortController();
+        xf.sub(event, () => { n += 1; }, {signal: abort.signal});
 
         const buttons = Di2Buttons();
-        buttons.decode(frame('20 08 11 f0 f0'));
-        const messages = toControlMessages(buttons.decode(frame('21 08 12 f0 f0')));
-        xf.dispatch('ble:di2:buttonState', messages);
+        buttons.decode(frame('20 08 08 f0 f0'));
+        xf.dispatch('ble:di2:buttonState', buttons.decode(frame(hex)));
+        abort.abort();
 
-        expect(notches).toBe(1);
+        return n;
+    }
+
+    test('right (channel 2) short press raises the power target in erg', () => {
+        expect(count('ui:power-target-inc', {}, '21 08 19 f0 f0')).toBe(1);
+        expect(count('ui:power-target-dec', {}, '21 08 19 f0 f0')).toBe(0);
+    });
+
+    test('with di2Swap the same press lowers it', () => {
+        expect(count('ui:power-target-dec', {di2Swap: true}, '21 08 19 f0 f0')).toBe(1);
+        expect(count('ui:power-target-inc', {di2Swap: true}, '21 08 19 f0 f0')).toBe(0);
     });
 });

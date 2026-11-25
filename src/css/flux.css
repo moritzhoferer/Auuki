@@ -2095,6 +2095,18 @@ navigation-action {
     margin-top: 1.5em;
 }
 
+/* Di2: legend of what each press does and the left/right swap */
+.di2-legend--tile { grid-column: span 3; }
+.di2-legend { display: block; line-height: 1.5em; }
+.di2-swap {
+    display: inline-block;
+    padding: 0.6em 1em;
+    border: 1px solid var(--border-color);
+    border-radius: 0.4em;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
 .device-card--tile {
     text-align: left;
 

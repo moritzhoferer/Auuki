@@ -1716,6 +1716,36 @@ class AutoStart extends AutoPause {
 
 customElements.define('auto-start', AutoStart);
 
+// Di2 left/right buttons: which lever is + depends on the E-TUBE setup
+class Di2Swap extends AutoPause {
+    postInit() {
+        this.effect  = 'sources';
+        this.key     = 'di2Swap';
+        this.state   = false;
+        this.values  = {on: {di2Swap: true}, off: {di2Swap: false}};
+    }
+    render() {
+        this.textContent = 'Swap sides';
+        this.title = `Swap sides: make the ${this.state === true ? 'right' : 'left'} lever +`;
+    }
+}
+
+customElements.define('di2-swap', Di2Swap);
+
+// what each Di2 press does, follows the left/right swap
+class Di2Legend extends Di2Swap {
+    subs() {
+        xf.sub(`${this.prop}`, this.onUpdate.bind(this), this.signal);
+    }
+    render() {
+        const [plus, minus] = this.state === true ? ['Left', 'Right'] : ['Right', 'Left'];
+        this.innerHTML = `<div><b>${plus}:</b> tap + · hold next interval</div>
+            <div><b>${minus}:</b> tap − · hold previous</div>`;
+    }
+}
+
+customElements.define('di2-legend', Di2Legend);
+
 class Theme extends DataView {
     postInit() {
         this.effect  = 'sources';
