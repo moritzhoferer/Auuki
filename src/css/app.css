@@ -468,6 +468,20 @@ sensor-list { display: flex; flex-direction: column; gap: var(--gap); }
 .sensor-row--actions .btn:hover, .sensor-ant .btn:hover { background: color-mix(in srgb, var(--accent) 28%, transparent); }
 .sensor-row--actions .btn--ghost, .sensor-ant .btn--ghost { background: var(--surface-2); color: var(--text); }
 .sensor-row--actions .btn--ghost:hover, .sensor-ant .btn--ghost:hover { background: var(--border); }
+/* Di2: legend of what each press does, on its own line under the row */
+.sensor-row--wrap { flex-wrap: wrap; }
+.di2-help {
+    flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+    padding-left: 38px; /* under the label: icon 26 px + gap 12 px */
+}
+/* the button drops below the legend when the column is narrow */
+.di2-legend { flex: 1 1 180px; min-width: 0; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: .85rem; }
+.di2-legend b { color: var(--text); font-weight: 500; }
+.di2-help .btn {
+    padding: 0 14px; border-color: transparent;
+    background: var(--surface-2); color: var(--text); font-weight: 600;
+}
+.di2-help .btn:hover { background: var(--border); }
 /* 'More sensors' looks like a row: names as its status, a chevron that turns */
 .sensor-more { border-top: 1px solid var(--border); margin-top: calc(var(--gap) * -1); }
 .sensor-more > summary {
@@ -873,6 +887,7 @@ button.editor--td { cursor: pointer; }
 
 @media (max-width: 420px) {
     .sensor-row { gap: 10px; }
+    .di2-help { padding-left: 36px; }
     .ride-bar .segmented--small .btn { padding: 0 8px; }
     target-stepper { gap: 4px; }
 }

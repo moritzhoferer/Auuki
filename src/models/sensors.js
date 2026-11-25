@@ -14,6 +14,7 @@ const sensors = [
     {id: 'smo2',       label: 'Muscle oxygen',     icon: 'smo2',       ble: 'ble:smo2',                                        provides: ['smo2', 'thb'], more: true},
     {id: 'core',       label: 'Core temperature',  icon: 'core',       ble: 'ble:coreTemp',                                    provides: ['coreBodyTemperature', 'skinTemperature'], more: true},
     {id: 'controller', label: 'Controller',        icon: 'controller', ble: 'ble:openBikeControl',                             provides: ['virtualGear'], more: true},
+    {id: 'di2',        label: 'Di2 buttons',       icon: 'controller', ble: 'ble:di2',                                         provides: [], more: true},
 ];
 
 // data that several sensors can provide: which one is used is db.sources[metric]

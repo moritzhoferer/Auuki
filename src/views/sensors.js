@@ -10,6 +10,8 @@ import { sensors, sharedMetrics, sensorBySource, isConnected, connectedCount } f
 
 xf.sub('ui:sensor:switch', (source) => xf.dispatch(`ui:${source}:switch`));
 xf.sub('ui:sensor:ant-driver', () => xf.dispatch('ui:ant:driver:switch'));
+// Di2: which lever is + (harder / next interval) depends on the E-TUBE setup
+xf.sub('ui:sensor:di2-swap', (value) => xf.dispatch('sources', {di2Swap: value === 'on'}));
 xf.sub('ui:sensor:source', (value) => {
     const [metric, source] = value.split('=');
     xf.dispatch('sources', {[metric]: source});
@@ -67,13 +69,15 @@ class SensorList extends UIView {
             const antBtn = sensor.ant && antOn && (!on || viaAnt) ?
                 `<button class="btn ${on ? 'btn--ghost' : ''}" data-action="sensor:switch" data-param="${sensor.ant}"
                     aria-label="${on ? 'Disconnect' : 'Connect'} ${html(sensor.label)} over ANT+">${on ? 'Disconnect' : 'ANT+'}</button>` : '';
-            return `<li class="sensor-row" data-status="${entry.status ?? 'off'}">
+            const extra = equals(sensor.id, 'di2') ? this.di2Template() : '';
+            return `<li class="sensor-row${extra ? ' sensor-row--wrap' : ''}" data-status="${entry.status ?? 'off'}">
                 ${icon(sensor.icon, 'sensor-row--icon')}
                 <span class="sensor-row--text">
                     <span class="sensor-row--label">${html(sensor.label)}</span>
                     <span class="sensor-row--status">${html(statusText(entry))}</span>
                 </span>
                 <span class="sensor-row--actions">${on && viaAnt ? '' : bleBtn}${antBtn}</span>
+                ${extra}
             </li>`;
         };
         const main = sensors.filter(s => !s.more);
@@ -99,6 +103,19 @@ class SensorList extends UIView {
                 <button class="btn btn--ghost" data-action="sensor:ant-driver"
                     aria-label="${antOn ? 'Turn off the ANT+ stick' : 'Use an ANT+ USB stick'}">${antOn ? 'Turn off' : 'Use ANT+'}</button>
             </div>`;
+    }
+    // what each Di2 press does, follows the left/right swap
+    di2Template() {
+        const swapped = (this.data.sources ?? {}).di2Swap === true;
+        const [plus, minus] = swapped ? ['Left', 'Right'] : ['Right', 'Left'];
+        return `<div class="di2-help">
+            <ul class="di2-legend" aria-label="Di2 buttons">
+                <li><b>${plus}:</b> tap + · hold next interval</li>
+                <li><b>${minus}:</b> tap − · hold previous</li>
+            </ul>
+            <button class="btn btn--ghost" data-action="sensor:di2-swap" data-param="${swapped ? 'off' : 'on'}"
+                aria-label="Swap sides: make the ${minus.toLowerCase()} lever +">Swap sides</button>
+        </div>`;
     }
     // when two connected sensors can provide the same value, let the rider pick
     sourcesTemplate(status) {

@@ -38,7 +38,7 @@ src/app.js          (home) controller: riders/login, accounts, planned, rides, r
 src/models/         plain classes/closures: validation, persistence, domain logic
   models.js         Model/Target base classes, PropInterval (power1s/power3s), Workout, Session, ...
   server.js         (home) fetch client for server/ (never throws, 401 -> 'server:logged-out')
-  sensors.js        the 7 sensor types: id, label, icon, ble/ant source, metrics
+  sensors.js        the 8 sensor types: id, label, icon, ble/ant source, metrics
   fields.js         ride tiles: label, unit, format, which sensors provide it
   rides.js          encode/summarize/save a ride (server, IDB fallback), flush pending
   profile.js range.js   workout profile blocks, pacing range and gauge math

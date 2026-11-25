@@ -14,6 +14,7 @@ const Device = {
     smo2: 'smo2',
     coreTemp: 'coreTemp',
     openBikeControl: 'openBikeControl',
+    di2: 'di2',
     generic: 'generic',
 };
 

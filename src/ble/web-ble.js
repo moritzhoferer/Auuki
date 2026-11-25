@@ -12,6 +12,7 @@ const services = {
     smo2:                '6404d801-4cb9-11e8-b566-0800200c9a66',
     coreTemp:            '00002100-5b1e-4347-b07c-97b514dae121',
     openBikeControl:     'd273f680-d548-419d-b9d1-fa0472345229',
+    di2:                 '000018ef-5348-494d-414e-4f5f424c4500', // Shimano D-Fly
 };
 
 const characteristics = {
@@ -72,12 +73,17 @@ const characteristics = {
     hapticFeedback:                'd273f682-d548-419d-b9d1-fa0472345229',
     appInformation:                'd273f683-d548-419d-b9d1-fa0472345229',
 
+    // Shimano Di2 D-Fly
+    di2Buttons:                    '00002ac2-5348-494d-414e-4f5f424c4500',
+
     // others
     sensorLocation:                    '00002a5d-0000-1000-8000-00805f9b34fb',
     clientCharacteristicConfiguration: '00002902-0000-1000-8000-00805f9b34fb',
 };
 
 const uuids = { ...services, ...characteristics };
+
+const shimanoCompanyId = 0x044A;
 
 function Filters() {
 
@@ -138,6 +144,18 @@ function Filters() {
         };
     }
 
+    // Di2 does not advertise the D-Fly service, match Shimano's company id
+    // or the rear derailleur name (RDR9250, RDR8150, RDR7150, ...)
+    function di2() {
+        return {
+            filters: [
+                {manufacturerData: [{companyIdentifier: shimanoCompanyId}]},
+                {namePrefix: 'RDR'},
+            ],
+            optionalServices: [uuids.di2, uuids.battery],
+        };
+    }
+
     function all() {
         return {acceptAllDevices: true};
     }
@@ -179,6 +197,7 @@ function Filters() {
         smo2,
         coreTemp,
         openBikeControl,
+        di2,
         all,
         generic,
     });

@@ -68,6 +68,8 @@ const resources = [
     'ble/moxy/moxy.js',
     'ble/moxy/smo2.js',
 
+    'ble/di2/di2.js',
+
     'ble/obc/controls.js',
     'ble/obc/obc.js',
     'ble/obc/training-controls.js',

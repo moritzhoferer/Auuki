@@ -38,6 +38,11 @@ const openBikeControl = ReactiveConnectable({
     filter: webBle.filters.openBikeControl(),
 });
 
+const di2 = ReactiveConnectable({
+    deviceType: Device.di2,
+    filter: webBle.filters.di2(),
+});
+
 // export {
 //     controllabe,
 //     heartRateMonitor,
