@@ -29,12 +29,13 @@ resistance and slope modes, .FIT recording. On top of that:
   when the app opens.
 - **Rides on the server** as .FIT files, uploaded to Intervals.icu or Garmin on demand.
 - **Redesigned interface** for wide screens and phones: a start screen with today's
-  workout, a ride screen with a pacing gauge for the target range, sensors and accounts
-  in one consistent list, 44 px touch targets.
+  workout, a ride screen that fits any window without scrolling (pacing gauge for the
+  target range, fields for the connected sensors, controls over the power box), sensors
+  and accounts in one consistent list, 44 px touch targets.
 - **All seven sensor types** in one place: trainer, heart rate, power meter, speed and
   cadence, muscle oxygen, core temperature and controller.
 
-<img alt="Riding a workout: interval countdown, 3 s power in the target range, tiles and the workout profile" src="doc/images/home/desktop-ride.png" />
+<img alt="Riding a workout: interval countdown, 3 s power in the target range, sensor fields, ride totals and the workout profile" src="doc/images/home/desktop-ride.png" />
 
 <img alt="Workouts: the plan from Intervals.icu and the built-in library" src="doc/images/home/desktop-workouts.png" />
 
