@@ -172,6 +172,87 @@ def test_pin_locks_after_repeated_failures(tmp_path):
     assert client.post("/api/session", json={"rider": me["id"], "pin": "1234"}).status_code == 429
 
 
+def test_pin_lock_doubles_and_survives_a_restart(tmp_path, monkeypatch):
+    clock = [1_000_000.0]
+    monkeypatch.setattr("app.store.time.time", lambda: clock[0])
+    client = make_client(tmp_path)
+    me = rider(client, pin="1234")
+    login = lambda pin: client.post("/api/session", json={"rider": me["id"], "pin": pin}).status_code
+
+    for _ in range(5):
+        assert login("0000") == 403
+    assert login("1234") == 429
+    clock[0] += 61
+    for _ in range(5):
+        assert login("0000") == 403
+    clock[0] += 61  # second lock is 2 min
+    assert login("1234") == 429
+
+    client = make_client(tmp_path)  # restart: the lock is read back from DATA_DIR
+    assert login("1234") == 429
+    clock[0] += 60
+    assert login("1234") == 200
+    assert login("0000") == 403  # a right PIN reset the counter
+    assert login("1234") == 200
+
+
+def test_pin_lock_is_capped_at_an_hour(tmp_path, monkeypatch):
+    clock = [1_000_000.0]
+    monkeypatch.setattr("app.store.time.time", lambda: clock[0])
+    client = make_client(tmp_path)
+    me = rider(client, pin="1234")
+    store_path = tmp_path / "data" / "pin_failures.json"
+    store_path.write_text(json.dumps({me["id"]: {"count": 49, "until": 0}}))
+    assert client.post("/api/session", json={"rider": me["id"], "pin": "0000"}).status_code == 403
+    assert json.loads(store_path.read_text())[me["id"]]["until"] == clock[0] + 3600
+
+
+def test_pin_change_logs_out_other_devices(tmp_path):
+    laptop = make_client(tmp_path)
+    me = rider(laptop, pin="1234")
+    phone = make_client(tmp_path)
+    assert phone.post("/api/session", json={"rider": me["id"], "pin": "1234"}).status_code == 200
+
+    assert laptop.patch("/api/me", json={"pin": "5678"}).status_code == 200
+    assert laptop.get("/api/me").status_code == 200
+    assert phone.get("/api/me").status_code == 401
+
+
+def test_log_out_everywhere(tmp_path):
+    laptop = make_client(tmp_path)
+    me = rider(laptop)
+    phone = make_client(tmp_path)
+    phone.post("/api/session", json={"rider": me["id"]})
+    old = phone.cookies.get("auuki_session")
+
+    assert laptop.delete("/api/sessions").status_code == 200
+    assert laptop.get("/api/me").status_code == 401
+    assert phone.get("/api/me").status_code == 401
+    assert phone.post("/api/session", json={"rider": me["id"]}).status_code == 200
+    assert phone.cookies.get("auuki_session") != old
+    assert phone.get("/api/me").status_code == 200
+
+
+def session_cookie_header(response):
+    return next(v for k, v in response.headers.multi_items()
+                if k == "set-cookie" and v.startswith("auuki_session="))
+
+
+def test_cookie_is_secure_on_https_only(tmp_path):
+    plain = make_client(tmp_path)
+    assert "secure" not in session_cookie_header(plain.post("/api/riders", json={"name": "A"})).lower()
+    tls = make_client(tmp_path)
+    tls.base_url = "https://testserver"
+    assert "secure" in session_cookie_header(tls.post("/api/riders", json={"name": "B"})).lower()
+
+
+def test_cookie_secure_setting_forces_it_on(tmp_path):
+    settings = Settings(data_dir=str(tmp_path / "data"), static_dir=str(tmp_path / "missing"),
+                        cookie_secure=True)
+    client = TestClient(create_app(settings))
+    assert "secure" in session_cookie_header(client.post("/api/riders", json={"name": "A"})).lower()
+
+
 def test_forged_cookie_is_rejected(tmp_path):
     client = make_client(tmp_path)
     me = rider(client)

@@ -103,6 +103,16 @@ xf.sub('ui:rider:switch', async () => {
     await showRiders();
 });
 
+xf.sub('ui:rider:logout-all', async () => {
+    if(isRiding()) return notice(finishFirst);
+    const result = await server.logoutAll();
+    if(!result.ok) return notice(errorText(result.error));
+    db.rider = null;
+    db.planned = [];
+    db.rides = [];
+    await showRiders();
+});
+
 xf.sub('ui:rider:update', async (changes) => {
     const result = await server.updateMe(changes);
     if(result.ok) {

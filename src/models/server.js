@@ -40,6 +40,7 @@ const server = Object.freeze({
     createRider:     (name, pin)    => request('POST', '/riders', pin ? {name, pin} : {name}),
     login:           (rider, pin)   => request('POST', '/session', pin ? {rider, pin} : {rider}),
     logout:          ()             => request('DELETE', '/session'),
+    logoutAll:       ()             => request('DELETE', '/sessions'),
     me:              ()             => request('GET', '/me'),
     updateMe:        (changes)      => request('PATCH', '/me', changes),
     deleteMe:        ()             => request('DELETE', '/me'),
@@ -71,7 +72,7 @@ const server = Object.freeze({
 const messages = {
     SERVER_UNREACHABLE:      "Can't reach the Auuki server. Check that it's running.",
     WRONG_PIN:               "That PIN doesn't match. Try again.",
-    TOO_MANY_TRIES:          'Too many wrong PINs. Wait a minute and try again.',
+    TOO_MANY_TRIES:          'Too many wrong PINs. Wait a while and try again; each new round locks longer.',
     INTERVALS_KEY_REJECTED:  'Intervals.icu rejected that API key. Check it and the athlete ID.',
     INTERVALS_UNREACHABLE:   "Can't reach Intervals.icu right now. Try again later.",
     INTERVALS_NOT_CONNECTED: 'Connect Intervals.icu in settings first.',

@@ -102,10 +102,13 @@ def create_app(
             raise ApiError(401, "NOT_LOGGED_IN")
         return rider
 
-    def start_session(response: Response, rider: dict) -> dict:
+    def start_session(request: Request, response: Response, rider: dict) -> dict:
+        # https is seen through the TLS proxy (uvicorn --proxy-headers); COOKIE_SECURE
+        # forces it on so a misconfigured proxy can't put the cookie on plain http
+        secure = settings.cookie_secure or request.url.scheme == "https"
         response.set_cookie(
-            COOKIE, store.session_token(rider["id"]), max_age=180 * 24 * 3600,
-            httponly=True, samesite="lax", secure=settings.cookie_secure,
+            COOKIE, store.session_token(rider), max_age=180 * 24 * 3600,
+            httponly=True, samesite="lax", secure=secure,
         )
         return store.public(rider)
 
@@ -142,22 +145,28 @@ def create_app(
         return store.overview()
 
     @app.post("/api/riders")
-    async def create_rider(body: NewRider, response: Response):
+    async def create_rider(body: NewRider, request: Request, response: Response):
         rider = store.create(body.name.strip(), body.pin)
-        return start_session(response, rider)
+        return start_session(request, response, rider)
 
     @app.post("/api/session")
-    async def login(body: Login, response: Response):
+    async def login(body: Login, request: Request, response: Response):
         try:
             rider = store.login(body.rider, body.pin)
         except PermissionError:
             raise ApiError(429, "TOO_MANY_TRIES")
         if rider is None:
             raise ApiError(403, "WRONG_PIN")
-        return start_session(response, rider)
+        return start_session(request, response, rider)
 
     @app.delete("/api/session")
     async def logout(response: Response):
+        response.delete_cookie(COOKIE)
+        return {"ok": True}
+
+    @app.delete("/api/sessions")
+    async def logout_everywhere(response: Response, rider: dict = Depends(current_rider)):
+        store.end_sessions(rider["id"])
         response.delete_cookie(COOKIE)
         return {"ok": True}
 
@@ -166,13 +175,17 @@ def create_app(
         return store.public(rider)
 
     @app.patch("/api/me")
-    async def change_me(body: RiderChanges, rider: dict = Depends(current_rider)):
+    async def change_me(body: RiderChanges, request: Request, response: Response,
+                        rider: dict = Depends(current_rider)):
         changes = body.model_dump(exclude_none=True)
-        if "pin" in changes:
-            changes["pin"] = hash_pin(changes["pin"]) if changes["pin"] else None
         if "name" in changes:
             changes["name"] = changes["name"].strip()
-        return store.public(store.update(rider["id"], **changes))
+        if "pin" not in changes:
+            return store.public(store.update(rider["id"], **changes))
+        # a new or removed PIN logs out every other device; this one gets a fresh cookie
+        changes["pin"] = hash_pin(changes["pin"]) if changes["pin"] else None
+        store.update(rider["id"], **changes)
+        return start_session(request, response, store.end_sessions(rider["id"]))
 
     @app.delete("/api/me")
     async def delete_me(response: Response, rider: dict = Depends(current_rider)):

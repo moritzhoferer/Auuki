@@ -18,7 +18,7 @@ cd server && uv sync && uv run pytest   # home only: Python env via uv (pyprojec
 Baseline on upstream/develop @ 3442b6a (2026-11-22): 461 pass, 50 fail, 11 skipped
 (home with all feat branches incl. ride panel: 528 pass, same 50 fail; server: 24 pytest).
 Redesign (branch `redesign`, merged into `home`; old views and their tests deleted):
-521 pass, 20 fail, 11 skipped; server: 31 pytest.
+521 pass, 20 fail, 11 skipped; server: 37 pytest.
 The failures already exist upstream. They come from stale tests that import moved or
 removed modules (`src/ble/uuids.js`, `src/fit/activity.js`, `src/fit/profiles.js`, ...)
 and from jsdom gaps (`idb.test.js`). Don't fix them unless asked. Compare against this

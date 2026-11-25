@@ -2,6 +2,7 @@
 
     DATA_DIR/secret.key              signs the session cookie
     DATA_DIR/profiles.json           riders, incl. their Intervals.icu API key (0600)
+    DATA_DIR/pin_failures.json       wrong-PIN counters and lock times, survive restarts
     DATA_DIR/garmin/<rider>/         Garmin tokens (written by garminconnect)
     DATA_DIR/rides/<rider>/          <ride>.fit + index.json with the summaries
 
@@ -17,8 +18,11 @@ import time
 from pathlib import Path
 
 SESSION_SECONDS = 180 * 24 * 3600
+# every MAX_PIN_FAILURES wrong PINs in a row lock the rider, the lock doubling each
+# round: 1 min, 2, 4 ... up to 1 h. A right PIN resets it.
 MAX_PIN_FAILURES = 5
 PIN_LOCK_SECONDS = 60
+PIN_LOCK_MAX_SECONDS = 3600
 
 RIDE_FIELDS = {
     "name": str, "timestamp": int, "duration": int, "distance": float,
@@ -68,7 +72,6 @@ class Store:
         self.root = Path(data_dir)
         self.root.mkdir(parents=True, exist_ok=True)
         self.lock = threading.Lock()
-        self.failures: dict[str, tuple[int, float]] = {}
         self.secret = self._secret()
 
     # --- session cookie --------------------------------------------------------
@@ -84,19 +87,32 @@ class Store:
     def _sign(self, payload: str) -> str:
         return hmac.new(self.secret, payload.encode(), hashlib.sha256).hexdigest()
 
-    def session_token(self, rider_id: str) -> str:
-        payload = f"{rider_id}.{int(time.time()) + SESSION_SECONDS}"
+    def session_token(self, rider: dict) -> str:
+        """rider.version.expires.signature; bumping the rider's sessionVersion voids it."""
+        payload = f"{rider['id']}.{rider.get('sessionVersion', 0)}.{int(time.time()) + SESSION_SECONDS}"
         return f"{payload}.{self._sign(payload)}"
 
     def session_rider(self, token: str | None) -> dict | None:
-        if not token or token.count(".") != 2:
+        if not token or token.count(".") != 3:
             return None
-        rider_id, expires, signature = token.split(".")
-        if not hmac.compare_digest(self._sign(f"{rider_id}.{expires}"), signature):
+        rider_id, version, expires, signature = token.split(".")
+        if not hmac.compare_digest(self._sign(f"{rider_id}.{version}.{expires}"), signature):
             return None
         if not expires.isdigit() or int(expires) < time.time():
             return None
-        return self.get(rider_id)
+        rider = self.get(rider_id)
+        if rider is None or version != str(rider.get("sessionVersion", 0)):
+            return None
+        return rider
+
+    def end_sessions(self, rider_id: str) -> dict:
+        """Log the rider out on every device."""
+        with self.lock:
+            riders = self._riders()
+            rider = next(r for r in riders if r["id"] == rider_id)
+            rider["sessionVersion"] = rider.get("sessionVersion", 0) + 1
+            self._save(riders)
+        return rider
 
     # --- riders ----------------------------------------------------------------
 
@@ -143,6 +159,7 @@ class Store:
     def delete(self, rider_id: str) -> None:
         with self.lock:
             self._save([r for r in self._riders() if r["id"] != rider_id])
+            self._clear_failures(rider_id)
         for folder in (self.garmin_dir(rider_id), self.rides_dir(rider_id)):
             if folder.is_dir():
                 for path in sorted(folder.rglob("*"), reverse=True):
@@ -156,14 +173,43 @@ class Store:
             return None
         if not rider.get("pin"):
             return rider
-        count, since = self.failures.get(rider_id, (0, 0.0))
-        if count >= MAX_PIN_FAILURES and time.time() - since < PIN_LOCK_SECONDS:
+        if self.locked_for(rider_id) > 0:
             raise PermissionError("locked")
         if pin and check_pin(pin, rider["pin"]):
-            self.failures.pop(rider_id, None)
+            with self.lock:
+                self._clear_failures(rider_id)
             return rider
-        self.failures[rider_id] = (count + 1, time.time())
+        with self.lock:
+            failures = self._failures()
+            entry = failures.get(rider_id, {"count": 0, "until": 0})
+            entry["count"] += 1
+            if entry["count"] % MAX_PIN_FAILURES == 0:
+                rounds = entry["count"] // MAX_PIN_FAILURES
+                lock = min(PIN_LOCK_SECONDS * 2 ** (rounds - 1), PIN_LOCK_MAX_SECONDS)
+                entry["until"] = time.time() + lock
+            failures[rider_id] = entry
+            _write_json(self._failures_path, failures)
         return None
+
+    # --- wrong-PIN counters, kept in DATA_DIR so a restart doesn't reset them -------
+
+    @property
+    def _failures_path(self) -> Path:
+        return self.root / "pin_failures.json"
+
+    def _failures(self) -> dict[str, dict]:
+        return _read_json(self._failures_path, {})
+
+    def _clear_failures(self, rider_id: str) -> None:
+        """Caller holds self.lock."""
+        failures = self._failures()
+        if failures.pop(rider_id, None) is not None:
+            _write_json(self._failures_path, failures)
+
+    def locked_for(self, rider_id: str) -> int:
+        """Seconds until the rider may try a PIN again, 0 when not locked."""
+        until = self._failures().get(rider_id, {}).get("until", 0)
+        return max(0, int(until - time.time() + 0.999))
 
     def public(self, rider: dict) -> dict:
         intervals = rider.get("intervals") or {}
