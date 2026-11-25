@@ -403,17 +403,19 @@ rider-setup .screen--head { flex-direction: column; align-items: flex-start; gap
 .today-empty { display: flex; flex-direction: column; gap: var(--gap); align-items: flex-start; }
 
 /* workout cards */
-/* name and meta left, Ride on the right, the shape below at the bottom of the card */
+/* name and meta left, Ride on the right, the shape below; 2 units high at every width */
 .workout-card {
-    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr;
-    align-items: center; gap: 12px 16px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 44px minmax(0, 1fr);
+    align-items: center; gap: 8px 16px;
+    height: calc(2 * var(--row) - var(--gap));
 }
-.workout-card--head { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.workout-card--head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.workout-card--name, .workout-card--meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workout-card--meta { color: var(--muted); font-size: .9rem; }
 .workout-card--when { color: var(--text); font-weight: 600; }
 .workout-card--when.is-today { color: var(--accent-2); }
 .workout-card .btn { grid-column: 2; grid-row: 1; }
-.workout-card .profile { grid-column: 1 / -1; grid-row: 2; align-self: end; }
+.workout-card .profile { grid-column: 1 / -1; grid-row: 2; align-self: stretch; height: 100%; }
 
 .profile { width: 100%; height: 48px; display: block; }
 .profile--large { height: 90px; }
@@ -446,6 +448,8 @@ sensor-list { display: flex; flex-direction: column; gap: var(--gap); }
     padding: 6px 0;
     border-bottom: 1px solid var(--border);
 }
+/* one unit per row: a 44 px button and 10 px above and below */
+.sensor-row { min-height: var(--unit); padding: 10px 0; }
 .sensor-row:last-child { border-bottom: none; }
 .sensor-row--icon { width: 26px; height: 26px; color: var(--off); }
 .sensor-row[data-status="on"] .sensor-row--icon { color: var(--in); }
@@ -477,7 +481,7 @@ sensor-list { display: flex; flex-direction: column; gap: var(--gap); }
 .sensor-more--chevron { width: 22px; height: 22px; margin-right: 8px; color: var(--muted); transition: transform .2s; }
 .sensor-more[open] .sensor-more--chevron { transform: rotate(180deg); }
 planned-list { display: flex; flex-direction: column; gap: var(--gap); container-type: inline-size; }
-.planned-more { min-height: 120px; border-style: dashed; flex-direction: column; color: var(--muted); }
+.planned-more { min-height: calc(2 * var(--row) - var(--gap)); border-style: dashed; flex-direction: column; color: var(--muted); }
 .planned-more:hover { color: var(--text); }
 @container (max-width: 495px) {
     .planned-more { min-height: 44px; justify-self: start; flex-direction: row; border-style: solid; color: inherit; }
@@ -492,15 +496,19 @@ ant-device-request { display: flex; flex-direction: column; gap: 8px; margin-top
 
 /* rides */
 .ride-rows { display: flex; flex-direction: column; }
+/* one unit per ride where the buttons fit next to the text; below that they wrap */
 .ride-row {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    min-height: var(--unit);
     padding: 10px 0;
     border-bottom: 1px solid var(--border);
 }
 .ride-row:last-child { border-bottom: none; }
-.ride-row--text { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; }
+.ride-row--text { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; }
+.ride-row--name, .ride-row--facts { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ride-row--name { font-weight: 500; }
 .ride-row--facts { color: var(--muted); font-size: .85rem; }
+.ride-row--actions { flex: none; }
 .ride-row--actions { display: flex; align-items: center; gap: 6px; }
 .ride-row--actions .status { padding: 0 6px; }
 
@@ -853,9 +861,6 @@ button.editor--td { cursor: pointer; }
     .rider-chip { padding: 0 4px; }
 
     .facts .tile--value { font-size: 1.5rem; }
-
-    /* workout cards: name and Ride side by side, shape below */
-    .workout-card .profile { height: 36px; }
 
     /* only connected sensors in the bar, the + button lists them all */
     .sensor-status--icon:not([data-status="on"]):not([data-status="connecting"]) { display: none; }
