@@ -33,9 +33,7 @@ function setControls(open) {
 }
 function hideControls() {
     const $controls = document.querySelector('.rp-controls');
-    const keep = !equals(document.body.dataset.watch, 'started') ||
-                 exists($controls?.querySelector(':focus-visible'));
-    if(keep) {
+    if(exists($controls?.querySelector(':focus-visible'))) {
         controlsTimer = setTimeout(hideControls, controlsHideAfter);
         return;
     }
@@ -44,7 +42,9 @@ function hideControls() {
 function showControls() {
     setControls(true);
     clearTimeout(controlsTimer);
-    controlsTimer = setTimeout(hideControls, controlsHideAfter);
+    if(equals(document.body.dataset.watch, 'started')) {
+        controlsTimer = setTimeout(hideControls, controlsHideAfter);
+    }
 }
 for(const type of ['pointermove', 'pointerdown', 'keydown']) {
     document.addEventListener(type, () => {
