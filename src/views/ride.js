@@ -418,8 +418,10 @@ class RideControls extends RideView {
         this.$play.setAttribute('aria-label', started ? 'Pause (space)' : (equals(status, 'paused') ? 'Resume (space)' : 'Start (space)'));
         this.$skip.innerHTML = icon(free ? 'lap' : 'skip');
         this.$skip.setAttribute('aria-label', free ? 'New lap (L)' : 'Skip to the next interval (L)');
-        this.$skip.disabled = !started;
-        this.$back.disabled = !started || (this.data.intervalIndex ?? 0) === 0;
+        // skipping works while riding and while paused, not before the start
+        const running = !equals(status, 'stopped');
+        this.$skip.disabled = !running;
+        this.$back.disabled = !running || (this.data.intervalIndex ?? 0) === 0;
         this.$finish.disabled = equals(status, 'stopped');
     }
 }
