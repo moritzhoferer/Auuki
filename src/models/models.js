@@ -702,6 +702,8 @@ function Session(args = {}) {
             mode: db.mode,
 
             // Targets
+            intensity: db.intensity,
+            powerTargetRange: db.powerTargetRange,
             powerTarget: db.powerTarget,
             resistanceTarget: db.resistanceTarget,
             slopeTarget: db.slopeTarget,

@@ -160,3 +160,11 @@ describe('power1s', () => {
     });
 });
 
+
+test('session restore retains workout intensity and the active pacing range', () => {
+    const targets = {intensity: 110, powerTarget: 220, powerTargetRange: {low: 210, high: 230}};
+    const session = models.session.dbToSession(targets);
+    const restored = {};
+    models.session.sessionToDb(restored, session);
+    expect(restored).toMatchObject(targets);
+});
