@@ -71,6 +71,14 @@ function OpenBikeControl() {
                 }
                 continue;
             }
+            if(equals(message.action, 'togglePause')) {
+                if(equals(watchStatus, 'started')) {
+                    actions.push({event: 'ui:watchPause'});
+                } else if(equals(watchStatus, 'paused')) {
+                    actions.push({event: 'ui:watchResume'});
+                }
+                continue;
+            }
             if(equals(message.action, 'changeMode')) {
                 actions.push({event: 'ui:mode-set', data: nextMode[mode] || ControlMode.erg});
             }
@@ -90,12 +98,15 @@ function OpenBikeControl() {
         }
     }
 
-    xf.reg('ble:openBikeControl:buttonState', (messages, db) => {
+    function onButtonState(messages, db) {
         dispatchActions(controlsFor(messages, {
             mode: db ? db.mode : '',
             watchStatus: db ? db.watchStatus : '',
         }));
-    });
+    }
+
+    xf.reg('ble:openBikeControl:buttonState', onButtonState);
+    xf.reg('ble:di2:buttonState', onButtonState);
 
     return Object.freeze({
         controlsFor,

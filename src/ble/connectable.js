@@ -12,6 +12,7 @@ import RCS from './rcs/rcs.js';
 import SMO2 from './moxy/smo2.js';
 import CoreTemp from './ct/ct.js';
 import OBC from './obc/obc.js';
+import Di2 from './di2/di2.js';
 import { webBle, uuids } from './web-ble.js';
 import { Device, Status, } from './enums.js';
 
@@ -464,6 +465,7 @@ function Connectable(args = {}) {
         const hasSmo2 = hasService(uuids.smo2);
         const hasCoreTemp = hasService(uuids.coreTemp);
         const hasOpenBikeControl = hasService(uuids.openBikeControl);
+        const hasDi2 = hasService(uuids.di2);
         const hasTrainerControl = hasFTMS || hasWCPS || hasFEC;
 
         // Order here is important
@@ -486,6 +488,18 @@ function Connectable(args = {}) {
                 onData: onData,
             });
             let res = await services.obc.setup();
+
+            return res;
+        }
+        if(hasDi2) {
+            _deviceType = Device.di2;
+            print.log(`ble: connectable: setup: ${getDeviceType()}`);
+
+            services['di2'] = Di2({
+                service: getService(uuids.di2),
+                onData: onData,
+            });
+            let res = await services.di2.setup();
 
             return res;
         }

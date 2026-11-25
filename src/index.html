@@ -1478,6 +1478,40 @@
                         </div>
                     </div> <!-- end open bike control settings -->
 
+                    <!-- shimano di2 settings -->
+                    <div class="device-card">
+                        <div class="device-card--cont">
+                            <div class="device-card--header">
+                                <div></div>
+                                <div class="device-card--header--label">Di2 Buttons</div>
+                                <battery-level for="ble:di2">
+                                    <div class="battery--level"></div>
+                                </battery-level>
+                            </div>
+                            <div class="device-card--body">
+                                <div class="device-card--body--row">
+                                    <connection-switch for="ble:di2"
+                                                    class="connection-icon-switch"
+                                                    indicatorClass="connection-icon-switch--indicator">
+
+                                        <svg class="connection-icon-switch--icon icon">
+                                            <use href="#icon--bluetooth"></use>
+                                        </svg>
+                                        <div class="connection-icon-switch--indicator off"></div>
+                                    </connection-switch>
+                                    <div class="device-card--tile">
+                                        <h3 class="device-card--tile--header">Name</h3>
+                                        <data-view class="data-view device-card--tile--value"
+                                                prop="ble:di2:name">--</data-view>
+                                    </div>
+                                    <div class="device-card--tile"></div>
+                                    <div class="device-card--tile"></div>
+                                    <div class="device-card--tile"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div> <!-- end shimano di2 settings -->
+
                     <!-- Options -->
                     <div class="list--sub-section">
                         <div class="list--row--outer">
