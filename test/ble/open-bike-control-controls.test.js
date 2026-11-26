@@ -34,6 +34,17 @@ describe('controlsFor arrows', () => {
         expect(eventsFor([pressed('decreaseDifficulty')], {mode})).toEqual([down]);
     });
 
+    test.each([
+        ['workout', 'erg', 'intensity'],
+        ['free', 'erg', 'power-target'],
+        ['workout', 'sim', 'slope-target'],
+        ['workout', 'resistance', 'resistance-target'],
+    ])('%s arrows in %s adjust %s', (rideKind, mode, target) => {
+        expect(eventsFor([pressed('increaseDifficulty'), pressed('shiftUp'),
+            pressed('decreaseDifficulty'), pressed('shiftDown')], {rideKind, mode}))
+            .toEqual([`ui:${target}-inc`, `ui:${target}-dec`]);
+    });
+
     test('a shift and the same difficulty arrow are one notch', () => {
         expect(eventsFor([
             pressed('shiftUp'),
@@ -94,11 +105,15 @@ describe('controlsFor workout buttons', () => {
 
     test('resume continues a paused watch and starts a stopped one', () => {
         expect(eventsFor([pressed('resume')], {watchStatus: 'paused'})).toEqual(['ui:watchResume']);
-        expect(eventsFor([pressed('resume')], {watchStatus: 'stopped'})).toEqual([
-            'ui:watchStart',
-            'ui:workoutStart',
-        ]);
+        expect(eventsFor([pressed('resume')], {watchStatus: 'stopped', screen: 'ready'})).toEqual(['ui:ride:start']);
+        expect(eventsFor([pressed('resume')], {watchStatus: 'stopped', screen: 'ride'})).toEqual(['ui:ride:start']);
         expect(eventsFor([pressed('resume')], {watchStatus: 'started'})).toEqual([]);
+    });
+
+    test('resume starts nothing before a ride is chosen', () => {
+        for(const screen of ['start', 'library', 'summary', 'settings', undefined]) {
+            expect(eventsFor([pressed('resume')], {watchStatus: 'stopped', screen})).toEqual([]);
+        }
     });
 
     test('change mode walks erg, resistance, then slope', () => {

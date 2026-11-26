@@ -249,8 +249,17 @@ class Store:
     def _save_rides(self, rider_id: str, rides: list[dict]) -> None:
         _write_json(self.rides_dir(rider_id) / "index.json", rides)
 
-    def add_ride(self, rider_id: str, content: bytes, summary: dict) -> dict:
+    def add_ride(self, rider_id: str, content: bytes, summary: dict, client_id: str = "") -> dict:
+        """client_id is the app's ID of the recording: sent again (a retry after a lost
+        answer, two tabs sending the same waiting ride) it returns the stored ride."""
+        if client_id:
+            with self.lock:
+                stored = next((r for r in self.rides(rider_id) if r.get("clientId") == client_id), None)
+            if stored is not None:
+                return stored
         ride = {"id": secrets.token_hex(8)}
+        if client_id:
+            ride["clientId"] = client_id
         for key, kind in RIDE_FIELDS.items():
             if key in summary and summary[key] is not None:
                 try:
@@ -265,7 +274,13 @@ class Store:
         folder.mkdir(parents=True, exist_ok=True)
         (folder / f"{ride['id']}.fit").write_bytes(content)
         with self.lock:
-            self._save_rides(rider_id, [*self.rides(rider_id), ride])
+            rides = self.rides(rider_id)
+            stored = next((r for r in rides if client_id and r.get("clientId") == client_id), None)
+            if stored is not None:
+                # the same recording arrived meanwhile: keep that one
+                (folder / f"{ride['id']}.fit").unlink(missing_ok=True)
+                return stored
+            self._save_rides(rider_id, [*rides, ride])
         return ride
 
     def ride(self, rider_id: str, ride_id: str) -> dict | None:

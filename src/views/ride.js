@@ -33,9 +33,7 @@ function setControls(open) {
 }
 function hideControls() {
     const $controls = document.querySelector('.rp-controls');
-    const keep = !equals(document.body.dataset.watch, 'started') ||
-                 exists($controls?.querySelector(':focus-visible'));
-    if(keep) {
+    if(exists($controls?.querySelector(':focus-visible'))) {
         controlsTimer = setTimeout(hideControls, controlsHideAfter);
         return;
     }
@@ -44,7 +42,9 @@ function hideControls() {
 function showControls() {
     setControls(true);
     clearTimeout(controlsTimer);
-    controlsTimer = setTimeout(hideControls, controlsHideAfter);
+    if(equals(document.body.dataset.watch, 'started')) {
+        controlsTimer = setTimeout(hideControls, controlsHideAfter);
+    }
 }
 for(const type of ['pointermove', 'pointerdown', 'keydown']) {
     document.addEventListener(type, () => {
@@ -399,7 +399,7 @@ customElements.define('target-stepper', TargetStepper);
 //
 class RideControls extends RideView {
     props() {
-        return ['watchStatus', 'rideKind', 'intervalIndex'];
+        return ['watchStatus', 'rideKind', 'intervalIndex', 'unsavedElapsed'];
     }
     config() {
         this.innerHTML = `<button class="btn btn--icon btn--ghost ride-controls--finish" data-action="ride:finish"
@@ -426,7 +426,8 @@ class RideControls extends RideView {
         const running = !equals(status, 'stopped');
         this.$skip.disabled = !running;
         this.$back.disabled = !running || (this.data.intervalIndex ?? 0) === 0;
-        this.$finish.disabled = equals(status, 'stopped');
+        // a stopped ride whose save failed can still be finished (saved again or discarded)
+        this.$finish.disabled = equals(status, 'stopped') && this.data.unsavedElapsed == null;
     }
 }
 
@@ -501,6 +502,8 @@ class RideGrid extends RideView {
         this.last = key;
 
         this.toggleAttribute('data-wide', layout.wide);
+        this.style.setProperty('--unit', `${layout.unit}px`);
+        this.toggleAttribute('data-compact', layout.unit < 64);
         const place = ($el, item) => {
             $el.hidden = false;
             $el.style.gridColumn = item.col;

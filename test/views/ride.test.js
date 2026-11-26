@@ -167,3 +167,18 @@ describe('<target-stepper>', () => {
         expect(events).toEqual(['ui:power-target-inc', 'ui:slope-target-inc']);
     });
 });
+
+test('the overlay hide timer runs only while riding', () => {
+    document.body.replaceChildren();
+    jest.useFakeTimers();
+    try {
+        setDb({watchStatus: 'started'});
+        expect(jest.getTimerCount()).toBe(1);
+        for(const watchStatus of ['paused', 'stopped']) {
+            setDb({watchStatus});
+            expect(jest.getTimerCount()).toBe(0);
+        }
+    } finally {
+        jest.useRealTimers();
+    }
+});

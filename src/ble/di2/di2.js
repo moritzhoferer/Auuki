@@ -144,6 +144,8 @@ function Di2(args = {}) {
             notify: {
                 callback: onData,
                 parser: {decode: buttons.decode},
+                // without button notifications the device does nothing
+                required: true,
             },
         },
     };

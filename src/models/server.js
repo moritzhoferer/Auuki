@@ -60,8 +60,11 @@ const server = Object.freeze({
     rideFile:   (id)              => request('GET', `/me/rides/${encodeURIComponent(id)}/file`),
     deleteRide: (id)              => request('DELETE', `/me/rides/${encodeURIComponent(id)}`),
     uploadRide: (id, service)     => request('POST', `/me/rides/${encodeURIComponent(id)}/upload/${service}`),
-    addRide(blob, summary) {
+    // rideId: the app's ID of the recording, the server stores it once however often it's sent
+    addRide(blob, summary, riderId, rideId) {
         const form = new FormData();
+        form.append('riderId', riderId);
+        if(rideId) form.append('clientId', rideId);
         form.append('file', blob, 'ride.fit');
         form.append('summary', JSON.stringify(summary));
         return request('POST', '/me/rides', form);

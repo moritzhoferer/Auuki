@@ -59,17 +59,26 @@ function Characteristic(args = {}) {
             abortController = new AbortController();
             signal = { signal: abortController.signal };
 
-            await _characteristic.startNotifications();
+            // listen before starting: a device may send its first value (Di2 sends
+            // the current button state) as soon as notifications are on
             _characteristic.addEventListener(
                 'characteristicvaluechanged', (e) => handler(e.target.value), signal
             );
+            await _characteristic.startNotifications();
 
             print.log(`tx: notifications: started: on: ${name} ${uuid}.`);
             return true;
         } catch(e) {
+            abortController?.abort();
             console.error(`notifications: failed: starting: on: name: ${name} uuid: ${uuid}`, e);
             return false;
         }
+    }
+
+    // drop the listener without talking to the device (it is gone after a dropout)
+    // Void -> Void
+    function unlisten() {
+        abortController?.abort();
     }
 
     // Function, Int, Int -> Bool;
@@ -163,6 +172,7 @@ function Characteristic(args = {}) {
         startNotifications,
         startNotificationsWithRetry,
         stopNotifications,
+        unlisten,
         read,
         write,
         writeWithRetry,

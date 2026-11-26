@@ -337,6 +337,13 @@ function Connectable(args = {}) {
 
             let resSetup = await setup();
 
+            // connected but without a notification the device needs (Di2 buttons):
+            // report a failed connection instead of a sensor that silently does nothing
+            const broken = Object.keys(services).filter(key => services[key]?.isBroken?.());
+            if(broken.length > 0) {
+                throw new Error(`ble: setup: required notifications failed: ${broken.join(', ')}`);
+            }
+
             // calling the connected callback last, because only at that point
             // the device is usable.
             onConnected();
@@ -344,8 +351,20 @@ function Connectable(args = {}) {
         } catch(e) {
             _connected = false;
             _status = Status.disconnected;
+            // a half set up device: no automatic reconnect, drop listeners, free the link
+            _autoReconnect = false;
+            abortController.abort();
+            releaseServices();
+            try { _device?.gatt?.connected && _device.gatt.disconnect(); } catch(_) {}
             onConnectFail(e);
             console.warn(e);
+        }
+    }
+
+    // forget the notification listeners of the last connection, the link is gone
+    function releaseServices() {
+        for(const key in services) {
+            services[key]?.unlisten?.();
         }
     }
 
@@ -427,8 +446,13 @@ function Connectable(args = {}) {
         onDisconnect();
     }
 
+    // the link dropped (out of range, battery): one cleanup for flags and listeners,
+    // connect() sets them up fresh when the device is back
     function _onDisconnect() {
+        _connected = false;
         _status = Status.disconnected;
+        abortController?.abort();  // this listener: connect() adds a new one
+        releaseServices();
         onDisconnect();
         if(_autoReconnect) onDropout();
     }

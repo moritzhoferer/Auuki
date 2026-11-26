@@ -2,6 +2,9 @@ import { xf, isArray, equals } from '../../functions.js';
 import { ControlMode } from '../enums.js';
 import { toControlMessages as di2Messages } from '../di2/di2.js';
 
+// screens where resume may start the chosen ride (same as auto-start in watch.js)
+const startScreens = ['ready', 'ride'];
+
 function OpenBikeControl() {
 
     const upForMode = {
@@ -22,16 +25,18 @@ function OpenBikeControl() {
         [ControlMode.sim]: ControlMode.erg,
     };
 
-    function pushArrow(actions, seen, direction, mode) {
+    function pushArrow(actions, seen, direction, {mode, rideKind}) {
         if(seen[direction]) return;
         seen[direction] = true;
 
         const table = equals(direction, 'up') ? upForMode : downForMode;
-        const event = table[mode];
+        const event = mode === ControlMode.erg && rideKind === 'workout'
+            ? (direction === 'up' ? 'ui:intensity-inc' : 'ui:intensity-dec')
+            : table[mode];
         if(event) actions.push({event});
     }
 
-    // [Message], {mode, watchStatus} -> [{event, data?}]
+    // [Message], {mode, rideKind, watchStatus, screen} -> [{event, data?}]
     function controlsFor(messages = [], context = {}) {
         const list = isArray(messages) ? messages : [];
         const mode = context.mode;
@@ -44,11 +49,11 @@ function OpenBikeControl() {
             if(!message || !equals(message.state, 'pressed')) continue;
 
             if(equals(message.action, 'shiftUp') || equals(message.action, 'increaseDifficulty')) {
-                pushArrow(actions, seen, 'up', mode);
+                pushArrow(actions, seen, 'up', context);
                 continue;
             }
             if(equals(message.action, 'shiftDown') || equals(message.action, 'decreaseDifficulty')) {
-                pushArrow(actions, seen, 'down', mode);
+                pushArrow(actions, seen, 'down', context);
                 continue;
             }
             if(equals(message.action, 'skipInterval') || equals(message.action, 'lap')) {
@@ -66,9 +71,9 @@ function OpenBikeControl() {
             if(equals(message.action, 'resume')) {
                 if(equals(watchStatus, 'paused')) {
                     actions.push({event: 'ui:watchResume'});
-                } else if(equals(watchStatus, 'stopped')) {
-                    actions.push({event: 'ui:watchStart'});
-                    actions.push({event: 'ui:workoutStart'});
+                } else if(equals(watchStatus, 'stopped') && startScreens.includes(context.screen)) {
+                    // the chosen ride decides: free rides start no workout
+                    actions.push({event: 'ui:ride:start'});
                 }
                 continue;
             }
@@ -92,10 +97,7 @@ function OpenBikeControl() {
     }
 
     function onButtonState(messages, db) {
-        dispatchActions(controlsFor(messages, {
-            mode: db ? db.mode : '',
-            watchStatus: db ? db.watchStatus : '',
-        }));
+        dispatchActions(controlsFor(messages, db || {}));
     }
 
     xf.reg('ble:openBikeControl:buttonState', onButtonState);

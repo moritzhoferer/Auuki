@@ -626,7 +626,7 @@ function Session(args = {}) {
     let name = 'session';
 
     function backup(db) {
-        idb.put('session', idb.setId(dbToSession(db), 0));
+        return idb.put('session', idb.setId(dbToSession(db), 0));
     }
 
     async function restore(db) {
@@ -637,7 +637,7 @@ function Session(args = {}) {
         let session = last(sessions);
 
         if(!empty(sessions)) {
-            if(session.elapsed > 0) {
+            if(session.elapsed > 0 || session.unsavedElapsed != null) {
                 sessionToDb(db, session);
             } else {
                 idb.clear(`${name}`);
@@ -651,6 +651,12 @@ function Session(args = {}) {
 
     function dbToSession(db) {
         const session = {
+            // who is recording: a restored ride is only given back to this rider (app.js)
+            sessionRider: db.sessionRider || '',
+            // the recording's ID, sent with every save attempt (no duplicates on the server)
+            sessionRideId: db.sessionRideId || '',
+            unsavedElapsed: db.unsavedElapsed ?? null,
+
             // Watch
             elapsed: db.elapsed,
             lapTime: db.lapTime,
@@ -702,6 +708,8 @@ function Session(args = {}) {
             mode: db.mode,
 
             // Targets
+            intensity: db.intensity,
+            powerTargetRange: db.powerTargetRange,
             powerTarget: db.powerTarget,
             resistanceTarget: db.resistanceTarget,
             slopeTarget: db.slopeTarget,

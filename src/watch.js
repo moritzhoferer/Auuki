@@ -4,6 +4,9 @@ import { models } from './models/models.js';
 import { TimerStatus, EventType, } from './activity/enums.js';
 import { stepRange, scaleRange, scaleWatts, clampIntensity, intensityLimits, } from './models/range.js';
 
+// screens where pedalling (or a controller's resume) may start the chosen ride
+const autoStartScreens = ['ready', 'ride'];
+
 const timer = new Worker(new URL('./timer.js', import.meta.url), {type: 'module'});
 
 class Watch {
@@ -33,6 +36,7 @@ class Watch {
         this.hasBeenAutoPaused = false;
         this.autoPause         = true;
         this.autoStart         = true;
+        this.screen            = '';
         this.init();
     }
     init() {
@@ -47,6 +51,7 @@ class Watch {
         xf.sub('db:intervalIndex',   index => { self.intervalIndex = index; });
         xf.sub('db:stepIndex',       index => { self.stepIndex     = index; });
         xf.sub('db:watchStatus',     state => { self.state         = state; });
+        xf.sub('db:screen',         screen => { self.screen        = screen; });
         xf.sub('db:workoutStatus',   state => {
             self.stateWorkout = state;
 
@@ -83,9 +88,9 @@ class Watch {
         xf.sub('ui:watchStart',   e => { self.start();          });
         xf.sub('workout:restore', e => { self.restoreWorkout(); });
         xf.sub('ui:watchPause',   e => { self.pause();          });
-        xf.sub('ui:watchResume',  e => { self.resume();         });
-        xf.sub('ui:watchLap',     e => { self.lap();            });
-        xf.sub('ui:watchBack',    e => { self.back();           });
+        xf.reg('ui:watchResume', (_, db) => { if(db.unsavedElapsed == null) self.resume(); });
+        xf.reg('ui:watchLap', (_, db) => { if(db.unsavedElapsed == null) self.lap(); });
+        xf.reg('ui:watchBack', (_, db) => { if(db.unsavedElapsed == null) self.back(); });
         // the finish sheet asks save / resume / discard before this
         xf.sub('ui:watchStop',    e => { self.stop();           });
     }
@@ -124,12 +129,17 @@ class Watch {
         }
 
         if(this.autoStart && this.isStopped()) {
+            // only once a ride is chosen: pedalling elsewhere (start, library) starts nothing
+            if(!autoStartScreens.includes(this.screen)) {
+                this.autoStartCounter = 3;
+                return;
+            }
             // check
             if(this.autoStartCounter < 0) return;
             if(this.autoStartCounter === 0) {
                 this.autoStartCounter = -1;
-                xf.dispatch(`ui:watchStart`);
-                xf.dispatch('ui:workoutStart');
+                // the chosen ride decides: free rides start no workout
+                xf.dispatch('ui:ride:start');
                 xf.dispatch(`ui:autoStartCounter`, -1);
                 return;
             }

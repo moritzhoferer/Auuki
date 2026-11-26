@@ -1,8 +1,9 @@
-import { xf, equals } from './functions.js';
+import { xf, equals, exists } from './functions.js';
 import { isoDate, isToday } from './utils.js';
 import { models } from './models/models.js';
 import { server, errorText } from './models/server.js';
 import { rides } from './models/rides.js';
+import { uuid } from './storage/uuid.js';
 
 //
 // App flows: who's riding, setup, accounts, choosing a ride, finishing it.
@@ -11,6 +12,7 @@ import { rides } from './models/rides.js';
 //
 
 let db = {};
+let saving = false;
 xf.reg('app:ready', (_, state) => { db = state; start(); });
 
 function notice(text = '') {
@@ -19,6 +21,16 @@ function notice(text = '') {
 
 function isRiding() {
     return !equals(db.watchStatus, 'stopped');
+}
+
+// riding, or stopped with a ride whose save failed: the ride must not change rider
+function hasRide() {
+    return isRiding() || db.unsavedElapsed != null;
+}
+
+// a response that arrives after the rider changed (switch, logout) belongs to the old one
+function isCurrent(riderId) {
+    return exists(riderId) && equals(db.rider?.id, riderId);
 }
 
 function setRider(me) {
@@ -30,12 +42,19 @@ function setRider(me) {
 async function start() {
     const me = await server.me();
     if(me.ok) {
+        const claimed = await claimSession(me.data.id);
+        if(claimed === null) return;
         setRider(me.data);
-        afterLogin();
-        db.screen = (db.elapsed > 0 && isRiding()) ? 'ride' : 'start';
+        afterLogin(claimed);
+        openRideOrStart();
         return;
     }
     await showRiders(me.error);
+}
+
+function openRideOrStart() {
+    db.screen = hasRide() ? 'ride' : 'start';
+    if(db.unsavedElapsed != null) xf.dispatch('ui:sheet', 'finish');
 }
 
 async function showRiders(error = '') {
@@ -45,8 +64,8 @@ async function showRiders(error = '') {
     db.screen = (riders.ok && db.riders.length === 0) ? 'setup' : 'riders';
 }
 
-function afterLogin() {
-    notice('');
+function afterLogin(message = '') {
+    notice(message);
     loadPlanned();
     loadRides();
     syncBody();
@@ -58,8 +77,9 @@ const bodyStaleAfter = 6 * 3600; // s
 
 async function syncBody() {
     if(!db.rider || equals(db.rider.bodySource ?? 'manual', 'manual')) return;
+    const id = db.rider.id;
     const result = await server.syncBody();
-    if(result.ok) setRider(result.data);
+    if(result.ok && isCurrent(id)) setRider(result.data);
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -76,9 +96,11 @@ xf.sub('ui:rider:pick', async ({id, pin}) => {
         xf.dispatch('rider:login-failed', {id, error: errorText(result.error)});
         return;
     }
+    const claimed = await claimSession(result.data.id);
+    if(claimed === null) return;
     setRider(result.data);
-    afterLogin();
-    xf.dispatch('ui:screen', 'start');
+    afterLogin(claimed);
+    openRideOrStart();
 });
 
 xf.sub('ui:rider:create', async ({name, pin}) => {
@@ -87,15 +109,17 @@ xf.sub('ui:rider:create', async ({name, pin}) => {
         notice(errorText(result.error));
         return;
     }
+    const claimed = await claimSession(result.data.id);
+    if(claimed === null) return;
     setRider(result.data);
-    afterLogin();
+    afterLogin(claimed);
     xf.dispatch('setup:step', 'accounts');
 });
 
 const finishFirst = 'A ride is in progress. Finish or discard it first.';
 
 xf.sub('ui:rider:switch', async () => {
-    if(isRiding()) return notice(finishFirst);
+    if(hasRide()) return notice(finishFirst);
     await server.logout();
     db.rider = null;
     db.planned = [];
@@ -104,7 +128,7 @@ xf.sub('ui:rider:switch', async () => {
 });
 
 xf.sub('ui:rider:logout-all', async () => {
-    if(isRiding()) return notice(finishFirst);
+    if(hasRide()) return notice(finishFirst);
     const result = await server.logoutAll();
     if(!result.ok) return notice(errorText(result.error));
     db.rider = null;
@@ -124,7 +148,7 @@ xf.sub('ui:rider:update', async (changes) => {
 });
 
 xf.sub('ui:rider:delete', async () => {
-    if(isRiding()) return notice(finishFirst);
+    if(hasRide()) return notice(finishFirst);
     const result = await server.deleteMe();
     if(!result.ok) return notice(errorText(result.error));
     db.rider = null;
@@ -133,7 +157,7 @@ xf.sub('ui:rider:delete', async () => {
 
 xf.sub('server:logged-out', async () => {
     // never interrupt a ride: the save keeps the ride locally if needed
-    if(!db.rider || isRiding()) return;
+    if(!db.rider || hasRide()) return;
     db.rider = null;
     await showRiders();
 });
@@ -220,11 +244,13 @@ async function loadPlanned() {
         db.plannedStatus = 'idle';
         return;
     }
+    const id = db.rider.id;
     db.plannedStatus = 'loading';
     // today and the next 7 days
     const end = new Date();
     end.setDate(end.getDate() + plannedDays);
     const result = await server.planned(isoDate(new Date()), isoDate(end));
+    if(!isCurrent(id)) return;
     if(!result.ok) {
         db.plannedStatus = 'error';
         return;
@@ -247,9 +273,11 @@ function todaysPlan() {
 
 async function loadRides() {
     if(!db.rider) return;
-    await rides.flush(db.rider.id);
+    const id = db.rider.id;
+    await rides.flush(id);
     const result = await server.rides();
-    const waiting = await rides.pendingSummaries(db.rider.id);
+    const waiting = await rides.pendingSummaries(id);
+    if(!isCurrent(id)) return;
     db.rides = [...waiting, ...(result.ok ? result.data : [])];
 }
 
@@ -302,17 +330,24 @@ xf.sub('ui:ride:library', (id) => {
 });
 
 function chooseWorkout(workout) {
+    if(hasRide() || !db.rider) return;
     db.workout = workout;
     db.rideKind = 'workout';
     xf.dispatch('ui:screen', 'ready');
 }
 
 xf.sub('ui:ride:free', () => {
+    if(hasRide() || !db.rider) return;
     db.rideKind = 'free';
     xf.dispatch('ui:screen', 'ready');
 });
 
 xf.sub('ui:ride:start', () => {
+    if(!db.rider || saving || isRiding()) return;
+    // a ride whose save failed comes first: save it again or discard it
+    if(db.unsavedElapsed != null) return xf.dispatch('ui:sheet', 'finish');
+    db.sessionRider = db.rider.id;
+    db.sessionRideId = uuid();
     xf.dispatch('ui:screen', 'ride');
     xf.dispatch('ui:watchStart');
     if(equals(db.rideKind, 'workout')) xf.dispatch('ui:workoutStart');
@@ -325,39 +360,109 @@ xf.sub('ui:ride:toggle', () => {
 });
 
 xf.sub('ui:ride:finish', () => {
+    if(saving || !isCurrent(db.sessionRider)) return;
     if(equals(db.watchStatus, 'started')) xf.dispatch('ui:watchPause');
     xf.dispatch('ui:sheet', 'finish');
 });
 
 xf.sub('ui:ride:resume', () => {
+    if(!db.rider || db.unsavedElapsed != null) return;
     xf.dispatch('ui:sheet', '');
     xf.dispatch('ui:watchResume');
 });
 
 xf.sub('ui:ride:save', async () => {
+    if(saving || !hasRide() || !isCurrent(db.sessionRider)) return;
+    saving = true;
     xf.dispatch('ui:sheet', '');
-    const elapsed = db.elapsed;
+    const elapsed = isRiding() ? db.elapsed : db.unsavedElapsed;
+    db.unsavedElapsed = elapsed;
+    // rides restored from before ride IDs: one now, kept in the checkpoint for retries
+    if(!db.sessionRideId) db.sessionRideId = uuid();
     // watch:stopped is dispatched synchronously, records and laps are complete after it
     xf.dispatch('ui:watchStop');
 
-    const { ride, pending } = await rides.save(db, db.rider?.id ?? '', elapsed);
+    await checkpointRide();
+    let saved;
+    try {
+        saved = await rides.save(db, db.sessionRider, elapsed, db.sessionRideId);
+    } catch {
+        // Encoding or storage can fail before the normal pending result.
+    } finally {
+        saving = false;
+    }
+    if(!saved) {
+        // Keep the recording available for another save attempt.
+        notice("The ride couldn't be saved, not on the server and not on this device. Try again, or discard it.");
+        xf.dispatch('ui:sheet', 'finish');
+        return;
+    }
+    db.unsavedElapsed = null;
+    const { ride, pending } = saved;
     endSession();
     db.ride = ride;
     db.rides = [ride, ...db.rides.filter(r => r.id !== ride.id)];
-    if(pending) notice("The server didn't answer. The ride is kept on this device and sent later.");
+    // replaces an error from an earlier attempt
+    notice(pending ? "The server didn't answer. The ride is kept on this device and sent later." : '');
     xf.dispatch('ui:screen', 'summary');
 });
 
 xf.sub('ui:ride:discard', () => {
+    if(saving || !isCurrent(db.sessionRider)) return;
+    db.unsavedElapsed = null;
     xf.dispatch('ui:sheet', '');
     xf.dispatch('ui:watchStop');
     endSession();
     xf.dispatch('ui:screen', 'start');
 });
 
+async function checkpointRide() {
+    try {
+        await models.session.backup(db);
+    } catch {
+        // The server or activity store can still accept the recording.
+    }
+}
+
 function endSession() {
     models.session.reset(db);
+    db.sessionRider = '';
+    db.sessionRideId = '';
     models.session.backup(db);
+}
+
+// A ride restored from this device belongs to the rider who recorded it. When someone
+// else logs in, it is kept on this device for its rider (sent with their next sync)
+// and the session starts clean. Backups from before riders were recorded have no rider:
+// the first rider to log in takes them, as before.
+// -> a notice for the rider who logs in, or ''
+async function claimSession(riderId) {
+    const owner = db.sessionRider;
+    if(!hasRide() && !(db.elapsed > 0)) return '';
+    if(!owner || owner === riderId) {
+        db.sessionRider = riderId;
+        return '';
+    }
+
+    const elapsed = db.unsavedElapsed ?? db.elapsed;
+    db.unsavedElapsed = elapsed;
+    xf.dispatch('ui:watchStop');
+    await checkpointRide();
+    let kept;
+    try {
+        kept = await rides.keep(db, owner, elapsed, db.sessionRideId || uuid());
+    } catch {
+        // Keep the stopped recording available for its owner.
+    }
+    if(!kept) {
+        db.rider = null;
+        await showRiders();
+        notice("A ride on this device still needs saving. Sign in as the rider who recorded it.");
+        return null;
+    }
+    db.unsavedElapsed = null;
+    endSession();
+    return 'A ride by another rider was still on this device. It is kept for them and sent when they log in.';
 }
 
 // the current workout list changed (upload): show the library
