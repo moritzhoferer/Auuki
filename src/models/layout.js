@@ -14,6 +14,9 @@ const minField = {s: 104, m: 150};
 const fieldRows = {s: 1, m: 2};
 const pacingSteps = [8, 6, 4, 3];
 const stepName = {3: 's', 4: 'm', 6: 'l', 8: 'xl'};
+// the least any ride shows: interval (or elapsed) 2 rows + the smallest pacing box
+const minRows = 2 + pacingSteps.at(-1);
+const minUnit = 32;         // below this rows are not shrunk any further
 
 // Number -> Int
 const rowsFor = (height) => Math.max(0, Math.floor((height + gap) / row));
@@ -34,11 +37,21 @@ const fieldsItem = (col, row, g) => ({key: 'fields', col, row, span: g.span, siz
 function narrow(rows, width, kind, primary) {
     const workout = kind !== 'free';
     const cols = perRow(width, minField.s);
-    const profileMin = workout ? 1 : 0;
-    let fr = Math.ceil(primary.length / cols);
-    let p;
-    while(!(p = pacingSteps.find(x => 2 + x + fr + profileMin <= rows)) && fr > 0) fr--;
-    p = p ?? pacingSteps.at(-1);
+    // the biggest pacing box next to as many field rows as fit, fields go before pacing goes below S
+    const fit = (profileMin) => {
+        let fr = Math.ceil(primary.length / cols);
+        let p;
+        while(!(p = pacingSteps.find(x => 2 + x + fr + profileMin <= rows)) && fr > 0) fr--;
+        return p ? {p, fr} : undefined;
+    };
+    let profileMin = workout ? 1 : 0;
+    let best = fit(profileMin);
+    if(!best && profileMin) {
+        // too short even for one profile row: drop the profile before anything overflows
+        profileMin = 0;
+        best = fit(0);
+    }
+    const { p, fr } = best ?? {p: pacingSteps.at(-1), fr: 0};
 
     let profile = profileMin;
     if(workout && rows - (2 + p + fr + profile) >= 1) profile = 2;
@@ -98,13 +111,20 @@ function wide(rows, width, kind, primary, secondary) {
 }
 
 // {width, height, kind: 'workout'|'free', primary: [field], secondary: [field]}
-// -> {rows, wide, items: [{key, col, row, span, step?, size?, cols?, fields?, next?}], spare}
+// -> {rows, unit, wide, items: [{key, col, row, span, step?, size?, cols?, fields?, next?}], spare}
 // width and height are the ride grid's content box. secondary (ride totals) is only used in wide.
+// unit is the row height in px: 64, or less on screens too short for minRows (phone in landscape).
 function rideLayout({width, height, kind = 'workout', primary = [], secondary = []} = {}) {
-    const rows = rowsFor(height);
-    return width >= wideFrom ?
+    let rows = rowsFor(height);
+    let rowUnit = unit;
+    if(rows < minRows) {
+        rows = minRows;
+        rowUnit = Math.max(minUnit, Math.floor((height + gap) / minRows) - gap);
+    }
+    const layout = width >= wideFrom ?
         wide(rows, width, kind, primary, secondary) :
         narrow(rows, width, kind, primary);
+    return {...layout, unit: rowUnit};
 }
 
 export {
@@ -116,4 +136,5 @@ export {
     row,
     columnGap,
     wideFrom,
+    minRows,
 };

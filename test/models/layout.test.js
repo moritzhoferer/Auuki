@@ -1,4 +1,4 @@
-import { rideLayout, rowsFor } from '../../src/models/layout.js';
+import { rideLayout, rowsFor, minRows } from '../../src/models/layout.js';
 
 // screen size -> the ride grid's content box, as in docs/design/ride-v2/ride-v3-mockup.html:
 // header 48, bottom bar 64, grid padding 10 top and bottom, 12 (narrow) or 16 (wide) at the sides
@@ -124,6 +124,34 @@ describe('rideLayout edge cases', () => {
                 const bottom = Math.max(...l.items.map(i => i.row + i.span - 1));
                 expect(bottom).toBeLessThanOrEqual(l.rows);
                 expect(l.spare).toBe(l.rows - bottom);
+            }
+        }
+    });
+
+    test('a short narrow workout drops the profile instead of running into the controls', () => {
+        // 400 × 500: 368 px, five rows
+        const l = layout(400, 500, few);
+        expect(l.rows).toBe(5);
+        expect(l.unit).toBe(64);
+        expect(summary(l)).toBe('s3 - -');
+    });
+
+    test('rows shrink below 64 px only when even the smallest layout does not fit', () => {
+        expect(layout(400, 880, few).unit).toBe(64);
+        const l = layout(800, 360, few);   // a phone in landscape: 228 px
+        expect(l.rows).toBe(minRows);
+        expect(l.unit).toBe(Math.floor((228 + 8) / minRows) - 8);
+    });
+
+    test.each([400, 560, 700, 800, 1024, 1440])('short screens fit in the grid at %i px wide', (w) => {
+        for(let h = 340; h <= 700; h += 10) {
+            for(const kind of ['workout', 'free']) {
+                for(const primary of [[], few, many]) {
+                    const l = layout(w, h, primary, kind);
+                    const bottom = Math.max(...l.items.map(i => i.row + i.span - 1));
+                    expect(bottom).toBeLessThanOrEqual(l.rows);
+                    expect(l.rows * l.unit + (l.rows - 1) * 8).toBeLessThanOrEqual(box(w, h).height);
+                }
             }
         }
     });

@@ -501,6 +501,8 @@ class RideGrid extends RideView {
         this.last = key;
 
         this.toggleAttribute('data-wide', layout.wide);
+        this.style.setProperty('--unit', `${layout.unit}px`);
+        this.toggleAttribute('data-compact', layout.unit < 64);
         const place = ($el, item) => {
             $el.hidden = false;
             $el.style.gridColumn = item.col;
