@@ -2,6 +2,9 @@ import { xf, isArray, equals } from '../../functions.js';
 import { ControlMode } from '../enums.js';
 import { toControlMessages as di2Messages } from '../di2/di2.js';
 
+// screens where resume may start the chosen ride (same as auto-start in watch.js)
+const startScreens = ['ready', 'ride'];
+
 function OpenBikeControl() {
 
     const upForMode = {
@@ -33,7 +36,7 @@ function OpenBikeControl() {
         if(event) actions.push({event});
     }
 
-    // [Message], {mode, rideKind, watchStatus} -> [{event, data?}]
+    // [Message], {mode, rideKind, watchStatus, screen} -> [{event, data?}]
     function controlsFor(messages = [], context = {}) {
         const list = isArray(messages) ? messages : [];
         const mode = context.mode;
@@ -68,9 +71,9 @@ function OpenBikeControl() {
             if(equals(message.action, 'resume')) {
                 if(equals(watchStatus, 'paused')) {
                     actions.push({event: 'ui:watchResume'});
-                } else if(equals(watchStatus, 'stopped')) {
-                    actions.push({event: 'ui:watchStart'});
-                    actions.push({event: 'ui:workoutStart'});
+                } else if(equals(watchStatus, 'stopped') && startScreens.includes(context.screen)) {
+                    // the chosen ride decides: free rides start no workout
+                    actions.push({event: 'ui:ride:start'});
                 }
                 continue;
             }
