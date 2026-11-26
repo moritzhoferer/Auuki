@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from .config import Settings
 from .garmin import GarminAccounts, GarminError
 from .intervals import Intervals, IntervalsError, body_settings
-from .store import UPLOAD_SERVICES, Store, hash_pin
+from .store import UPLOAD_SERVICES, Store, hash_pin, valid_id
 
 log = logging.getLogger("auuki")
 
@@ -274,11 +274,14 @@ def create_app(
     async def add_ride(
         file: UploadFile = File(...),
         riderId: str = Form(...),
+        clientId: str = Form(""),
         summary: str = Form("{}"),
         rider: dict = Depends(current_rider),
     ):
         if riderId != rider["id"]:
             raise ApiError(409, "RIDER_CHANGED")
+        if clientId and not valid_id(clientId):
+            raise ApiError(400, "INVALID_CLIENT_ID")
         content = await file.read(MAX_FIT_BYTES + 1)
         if not content or len(content) > MAX_FIT_BYTES:
             raise ApiError(400, "INVALID_FILE")
@@ -286,7 +289,7 @@ def create_app(
             values = json.loads(summary)
         except json.JSONDecodeError:
             values = {}
-        return store.add_ride(rider["id"], content, values if isinstance(values, dict) else {})
+        return store.add_ride(rider["id"], content, values if isinstance(values, dict) else {}, clientId)
 
     def ride_path(rider: dict, ride_id: str) -> Path:
         path = store.ride_file(rider["id"], ride_id)

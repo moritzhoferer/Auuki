@@ -39,24 +39,25 @@ function summarize(db, elapsed = db.elapsed) {
 
 // -> {ride, pending} | null when neither the server nor this device kept it
 // elapsed: the moving time, read before the watch stops (stopping resets it)
-async function save(db, riderId, elapsed = db.elapsed) {
+// rideId: the recording's ID, the same on every attempt, so a retry is never stored twice
+async function save(db, riderId, elapsed = db.elapsed, rideId = uuid()) {
     const blob = encode(db);
     const summary = summarize(db, elapsed);
-    const result = await server.addRide(blob, summary, riderId);
+    const result = await server.addRide(blob, summary, riderId, rideId);
 
     if(result.ok) return {ride: result.data, pending: false};
 
-    return keepLocal(blob, summary, riderId);
+    return keepLocal(blob, summary, riderId, rideId);
 }
 
 // keep a ride on this device only, sent with riderId's next sync
 // -> {ride, pending: true} | null
-async function keep(db, riderId, elapsed = db.elapsed) {
-    return keepLocal(encode(db), summarize(db, elapsed), riderId);
+async function keep(db, riderId, elapsed = db.elapsed, rideId = uuid()) {
+    return keepLocal(encode(db), summarize(db, elapsed), riderId, rideId);
 }
 
-async function keepLocal(blob, summary, riderId) {
-    const id = uuid();
+// the waiting ride is stored under the recording's ID, flush sends it with that ID
+async function keepLocal(blob, summary, riderId, id) {
     const ride = {...summary, id, pending: true, uploads: {garmin: 'none', intervals: 'none'}};
     await idb.put(store, {id, riderId, blob, summary: ride});
     // idb.put resolves even when the write failed (quota, aborted transaction):
@@ -75,7 +76,7 @@ async function flush(riderId) {
     let waiting = 0;
     for(const record of await pending(riderId)) {
         const { pending: _, id: __, uploads: ___, ...summary } = record.summary;
-        const result = await server.addRide(record.blob, summary, record.riderId);
+        const result = await server.addRide(record.blob, summary, record.riderId, record.id);
         if(result.ok) {
             await idb.remove(store, record.id);
         } else {

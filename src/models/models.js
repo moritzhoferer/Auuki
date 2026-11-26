@@ -653,6 +653,8 @@ function Session(args = {}) {
         const session = {
             // who is recording: a restored ride is only given back to this rider (app.js)
             sessionRider: db.sessionRider || '',
+            // the recording's ID, sent with every save attempt (no duplicates on the server)
+            sessionRideId: db.sessionRideId || '',
             unsavedElapsed: db.unsavedElapsed ?? null,
 
             // Watch

@@ -539,3 +539,24 @@ def test_ride_upload_requires_the_recording_owner(tmp_path):
     response = client.post("/api/me/rides", files=files, data={"riderId": owner["id"]})
     assert response.status_code == 409
     assert client.get("/api/me/rides").json() == []
+
+
+def test_same_recording_is_stored_once(tmp_path):
+    client = make_client(tmp_path)
+    me = rider(client)
+    form = {"riderId": me["id"], "clientId": "5f0c6c1e-2b8a-4c4e-9a51-0d6b2f6a9e11",
+            "summary": json.dumps({"name": "Sweet spot", "duration": 3600})}
+    first = client.post("/api/me/rides", files={"file": ("ride.fit", b"FITDATA")}, data=form)
+    again = client.post("/api/me/rides", files={"file": ("ride.fit", b"FITDATA")}, data=form)
+    assert first.status_code == again.status_code == 200
+    assert again.json()["id"] == first.json()["id"]
+    assert len(client.get("/api/me/rides").json()) == 1
+    assert len(list((tmp_path / "data" / "rides" / me["id"]).glob("*.fit"))) == 1
+
+
+def test_invalid_client_id_is_rejected(tmp_path):
+    client = make_client(tmp_path)
+    me = rider(client)
+    response = client.post("/api/me/rides", files={"file": ("ride.fit", b"FITDATA")},
+                           data={"riderId": me["id"], "clientId": "../x"})
+    assert response.status_code == 400

@@ -54,6 +54,8 @@ test('a pending save blocks competing actions and can be retried after reload', 
     expect(state.records).toHaveLength(1);
     expect(state.watchStatus).toBe('stopped');
     expect(rides.save).toHaveBeenCalledTimes(1);
+    const firstRideId = rides.save.mock.calls[0][3];
+    expect(firstRideId).toEqual(expect.any(String));
     finish(null);
     await settle();
     const restored = fresh();
@@ -64,7 +66,7 @@ test('a pending save blocks competing actions and can be retried after reload', 
     rides.save.mockResolvedValueOnce({ride: {id: 'saved'}, pending: false});
     xf.dispatch('ui:ride:save');
     await settle();
-    expect(rides.save).toHaveBeenLastCalledWith(expect.any(Object), 'a', 60);
+    expect(rides.save).toHaveBeenLastCalledWith(expect.any(Object), 'a', 60, firstRideId);
     expect(restored.screen).toBe('summary');
 });
 

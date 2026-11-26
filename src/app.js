@@ -3,6 +3,7 @@ import { isoDate, isToday } from './utils.js';
 import { models } from './models/models.js';
 import { server, errorText } from './models/server.js';
 import { rides } from './models/rides.js';
+import { uuid } from './storage/uuid.js';
 
 //
 // App flows: who's riding, setup, accounts, choosing a ride, finishing it.
@@ -346,6 +347,7 @@ xf.sub('ui:ride:start', () => {
     // a ride whose save failed comes first: save it again or discard it
     if(db.unsavedElapsed != null) return xf.dispatch('ui:sheet', 'finish');
     db.sessionRider = db.rider.id;
+    db.sessionRideId = uuid();
     xf.dispatch('ui:screen', 'ride');
     xf.dispatch('ui:watchStart');
     if(equals(db.rideKind, 'workout')) xf.dispatch('ui:workoutStart');
@@ -375,13 +377,15 @@ xf.sub('ui:ride:save', async () => {
     xf.dispatch('ui:sheet', '');
     const elapsed = isRiding() ? db.elapsed : db.unsavedElapsed;
     db.unsavedElapsed = elapsed;
+    // rides restored from before ride IDs: one now, kept in the checkpoint for retries
+    if(!db.sessionRideId) db.sessionRideId = uuid();
     // watch:stopped is dispatched synchronously, records and laps are complete after it
     xf.dispatch('ui:watchStop');
 
     await checkpointRide();
     let saved;
     try {
-        saved = await rides.save(db, db.sessionRider, elapsed);
+        saved = await rides.save(db, db.sessionRider, elapsed, db.sessionRideId);
     } catch {
         // Encoding or storage can fail before the normal pending result.
     } finally {
@@ -423,6 +427,7 @@ async function checkpointRide() {
 function endSession() {
     models.session.reset(db);
     db.sessionRider = '';
+    db.sessionRideId = '';
     models.session.backup(db);
 }
 
@@ -445,7 +450,7 @@ async function claimSession(riderId) {
     await checkpointRide();
     let kept;
     try {
-        kept = await rides.keep(db, owner, elapsed);
+        kept = await rides.keep(db, owner, elapsed, db.sessionRideId || uuid());
     } catch {
         // Keep the stopped recording available for its owner.
     }

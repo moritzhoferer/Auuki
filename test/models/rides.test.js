@@ -49,12 +49,13 @@ describe('rides.keep', () => {
     });
 });
 
-test('first upload and queued retry both specify the recording owner', async () => {
+test('first upload and queued retry both specify the recording owner and its ID', async () => {
     const {server} = require('../../src/models/server.js');
-    await rides.save(db, 'a', 60);
-    expect(server.addRide).toHaveBeenLastCalledWith('fit', expect.any(Object), 'a');
+    await rides.save(db, 'a', 60, 'ride-1');
+    expect(server.addRide).toHaveBeenLastCalledWith('fit', expect.any(Object), 'a', 'ride-1');
     server.addRide.mockClear();
     expect(await rides.flush('a')).toBe(1);
-    expect(server.addRide).toHaveBeenCalledWith('fit', expect.any(Object), 'a');
+    // the same ID as the first attempt: the server stores the recording once
+    expect(server.addRide).toHaveBeenCalledWith('fit', expect.any(Object), 'a', 'ride-1');
     expect(await rides.pendingSummaries('a')).toHaveLength(1);
 });
