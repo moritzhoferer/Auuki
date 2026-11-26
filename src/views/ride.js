@@ -399,7 +399,7 @@ customElements.define('target-stepper', TargetStepper);
 //
 class RideControls extends RideView {
     props() {
-        return ['watchStatus', 'rideKind', 'intervalIndex'];
+        return ['watchStatus', 'rideKind', 'intervalIndex', 'unsavedElapsed'];
     }
     config() {
         this.innerHTML = `<button class="btn btn--icon btn--ghost ride-controls--finish" data-action="ride:finish"
@@ -426,7 +426,8 @@ class RideControls extends RideView {
         const running = !equals(status, 'stopped');
         this.$skip.disabled = !running;
         this.$back.disabled = !running || (this.data.intervalIndex ?? 0) === 0;
-        this.$finish.disabled = equals(status, 'stopped');
+        // a stopped ride whose save failed can still be finished (saved again or discarded)
+        this.$finish.disabled = equals(status, 'stopped') && this.data.unsavedElapsed == null;
     }
 }
 

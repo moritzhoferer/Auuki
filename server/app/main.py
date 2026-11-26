@@ -273,9 +273,12 @@ def create_app(
     @app.post("/api/me/rides")
     async def add_ride(
         file: UploadFile = File(...),
+        riderId: str = Form(...),
         summary: str = Form("{}"),
         rider: dict = Depends(current_rider),
     ):
+        if riderId != rider["id"]:
+            raise ApiError(409, "RIDER_CHANGED")
         content = await file.read(MAX_FIT_BYTES + 1)
         if not content or len(content) > MAX_FIT_BYTES:
             raise ApiError(400, "INVALID_FILE")

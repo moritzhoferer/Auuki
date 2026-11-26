@@ -106,6 +106,8 @@ let db = {
     sheet: '',           // '' | sensors | finish
     rideKind: 'workout', // workout | free
     notice: '',
+    unsavedElapsed: null,  // moving time of a stopped ride whose save failed (app.js), for the retry
+    sessionRider: '',   // who recorded the current session (backup), app.js claimSession
 
     // Riders (server)
     rider: null,

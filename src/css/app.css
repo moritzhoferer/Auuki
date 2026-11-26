@@ -334,6 +334,9 @@ rider-chip { display: flex; }
     background: #2d2716;
 }
 .notice > span { flex: 1; }
+.notice--sheet { margin: 0; }
+/* after a failed save the watch is stopped: only save again or discard */
+body:not([data-watch="started"]):not([data-watch="paused"]) dialog[data-sheet="finish"] [data-action="ride:resume"] { display: none; }
 
 ui-tooltip {
     position: fixed; left: 0; top: 0; z-index: 1000;

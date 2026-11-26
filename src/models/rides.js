@@ -1,4 +1,4 @@
-import { avg } from '../functions.js';
+import { avg, equals } from '../functions.js';
 import { idb } from '../storage/idb.js';
 import { uuid } from '../storage/uuid.js';
 import { fileHandler } from '../file.js';
@@ -37,19 +37,32 @@ function summarize(db, elapsed = db.elapsed) {
     };
 }
 
-// -> {ride, pending}
+// -> {ride, pending} | null when neither the server nor this device kept it
 // elapsed: the moving time, read before the watch stops (stopping resets it)
 async function save(db, riderId, elapsed = db.elapsed) {
     const blob = encode(db);
     const summary = summarize(db, elapsed);
-    const result = await server.addRide(blob, summary);
+    const result = await server.addRide(blob, summary, riderId);
 
     if(result.ok) return {ride: result.data, pending: false};
 
+    return keepLocal(blob, summary, riderId);
+}
+
+// keep a ride on this device only, sent with riderId's next sync
+// -> {ride, pending: true} | null
+async function keep(db, riderId, elapsed = db.elapsed) {
+    return keepLocal(encode(db), summarize(db, elapsed), riderId);
+}
+
+async function keepLocal(blob, summary, riderId) {
     const id = uuid();
     const ride = {...summary, id, pending: true, uploads: {garmin: 'none', intervals: 'none'}};
     await idb.put(store, {id, riderId, blob, summary: ride});
-    return {ride, pending: true};
+    // idb.put resolves even when the write failed (quota, aborted transaction):
+    // only a record read back from a later transaction is really kept
+    const kept = await idb.get(store, id);
+    return equals(kept?.id, id) ? {ride, pending: true} : null;
 }
 
 async function pending(riderId) {
@@ -62,7 +75,7 @@ async function flush(riderId) {
     let waiting = 0;
     for(const record of await pending(riderId)) {
         const { pending: _, id: __, uploads: ___, ...summary } = record.summary;
-        const result = await server.addRide(record.blob, summary);
+        const result = await server.addRide(record.blob, summary, record.riderId);
         if(result.ok) {
             await idb.remove(store, record.id);
         } else {
@@ -89,6 +102,7 @@ export const rides = Object.freeze({
     encode,
     summarize,
     save,
+    keep,
     flush,
     pendingSummaries,
     download,

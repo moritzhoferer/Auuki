@@ -60,8 +60,9 @@ const server = Object.freeze({
     rideFile:   (id)              => request('GET', `/me/rides/${encodeURIComponent(id)}/file`),
     deleteRide: (id)              => request('DELETE', `/me/rides/${encodeURIComponent(id)}`),
     uploadRide: (id, service)     => request('POST', `/me/rides/${encodeURIComponent(id)}/upload/${service}`),
-    addRide(blob, summary) {
+    addRide(blob, summary, riderId) {
         const form = new FormData();
+        form.append('riderId', riderId);
         form.append('file', blob, 'ride.fit');
         form.append('summary', JSON.stringify(summary));
         return request('POST', '/me/rides', form);
