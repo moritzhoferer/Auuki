@@ -174,26 +174,48 @@ function Service(args = {}) {
     }
 
     // start notifications on the configured characteristics
+    // A notify marked `required` (the service is useless without it) that still fails
+    // after the retries makes start() return false and leaves the service not started.
+    // Others may fail, as before: some devices lack optional characteristics.
     //
     // Void -> Bool
     async function start() {
+        let ok = true;
         for(const key in spec) {
             characteristics[key] = Characteristic({
                 characteristic: _characteristics[spec[key].uuid]
             });
 
             if(exists(spec[key].notify)) {
-                await characteristics[key].startNotificationsWithRetry(
+                const started = await characteristics[key].startNotificationsWithRetry(
                     compose2(
                         spec[key].notify?.callback ?? defaultCallback,
                         spec[key].notify?.parser?.decode ?? defaultParser,
                     ),
                 );
+                if(!started && spec[key].notify.required) ok = false;
             }
         }
 
-        _started = true;
-        return true;
+        _started = ok;
+        return ok;
+    }
+
+    // a required notification isn't running (start failed, or setup threw before it)
+    //
+    // Void -> Bool
+    function isBroken() {
+        return !_started && Object.values(spec).some(c => c.notify?.required);
+    }
+
+    // drop all notification listeners without talking to the device (after a dropout)
+    //
+    // Void -> Void
+    function unlisten() {
+        for(const key in characteristics) {
+            characteristics[key]?.unlisten?.();
+        }
+        _started = false;
     }
 
     // stop notifications on the configured characteristics
@@ -229,7 +251,9 @@ function Service(args = {}) {
     return {
         start,
         stop,
+        unlisten,
         isStarted,
+        isBroken,
         getCharacteristics,
         setup,
         characteristics,
