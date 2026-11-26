@@ -1,8 +1,8 @@
 # docker compose up -d --build   ->  http://localhost:8080
 #
 # localhost is a secure context, so Web Bluetooth works there without TLS.
-# Other devices on the home network need https for Web Bluetooth: put a TLS proxy
-# in front and set COOKIE_SECURE=true. AUUKI_BIND=0.0.0.0 opens the port to the LAN.
+# Other devices on the home network need https for Web Bluetooth: enable the
+# `https` profile (Caddy + DuckDNS certificate, see .env.example and server/README.md).
 services:
   auuki:
     build: .
@@ -13,8 +13,29 @@ services:
     env_file:
       - path: server/.env
         required: false
+    environment:
+      # trust X-Forwarded-Proto from Caddy, so the session cookie is https only
+      FORWARDED_ALLOW_IPS: "*"
     volumes:
       - auuki-data:/data          # riders, their Garmin tokens and rides
 
+  caddy:
+    profiles: [https]
+    build: ./caddy
+    image: auuki-caddy
+    restart: unless-stopped
+    depends_on: [auuki]
+    ports:
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"   # HTTP/3
+    environment:
+      AUUKI_HOST: ${AUUKI_HOST:-}
+      DUCKDNS_API_TOKEN: ${DUCKDNS_API_TOKEN:-}
+    volumes:
+      - caddy-data:/data          # certificates and ACME account
+      - caddy-config:/config
+
 volumes:
   auuki-data:
+  caddy-data:
+  caddy-config:

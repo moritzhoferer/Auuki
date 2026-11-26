@@ -22,6 +22,7 @@ server/.venv/
 __pycache__/
 .pytest_cache/
 !server/.env.example
+!/.env.example
 
 # home: local Claude Code tooling
 .claude/
