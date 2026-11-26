@@ -5,6 +5,7 @@ import { message } from './message.js';
 import { fec } from './fec.js';
 import { hr } from './hr.js';
 import { Q } from './q.js';
+import { models } from '../models/models.js';
 
 function profileToDeviceType(profile) {
     if(equals(profile, 'hrm')) return 120;
@@ -300,18 +301,22 @@ function Controllable() {
         return control(fec.dataPage51.encode({grade}));
     }
 
+    // db.sources names the trainer by its Bluetooth source over either transport,
+    // so a choice made in the sensors sheet holds for ANT+ too
+    const source = 'ble:controllable';
+
     function onData(payload) {
         const data = existance(fec.decode(payload), {});
 
-        if(exists(data.power)) {
+        if(exists(data.power) && models.sources.isSource('power', source)) {
             xf.dispatch('power', data.power);
         }
 
-        if(exists(data.cadence)) {
+        if(exists(data.cadence) && models.sources.isSource('cadence', source)) {
             xf.dispatch('cadence', data.cadence);
         }
 
-        if(exists(data.speed)) {
+        if(exists(data.speed) && models.sources.isSource('speed', source)) {
             xf.dispatch('speed', data.speed);
         }
     }
