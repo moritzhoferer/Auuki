@@ -1,6 +1,7 @@
 import { xf, equals, exists } from '../functions.js';
 import { isToday } from '../utils.js';
 import { UIView, icon, html, duration } from './ui.js';
+import { models } from '../models/models.js';
 import { workoutDuration, profileBlocks, intervalTarget } from '../models/profile.js';
 
 //
@@ -16,7 +17,7 @@ function profileSvg(workout, ftp, className = '') {
     const scale = Math.max(1.2, ...blocks.map(b => b.intensity));
     const rects = blocks.map(b => {
         const h = 100 * b.intensity / scale;
-        const zone = b.intensity >= 1.05 ? 'high' : b.intensity >= 0.88 ? 'mid' : 'low';
+        const zone = models.ftp.percentageToZone(b.intensity);
         return `<rect data-zone="${zone}" x="${(1000 * b.start / total).toFixed(1)}" y="${(100 - h).toFixed(1)}"
             width="${Math.max(1, 1000 * b.duration / total - 1.5).toFixed(1)}" height="${h.toFixed(1)}"/>`;
     }).join('');
