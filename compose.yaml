@@ -2,7 +2,7 @@
 #
 # localhost is a secure context, so Web Bluetooth works there without TLS.
 # Other devices on the home network need https for Web Bluetooth: enable the
-# `https` profile (Caddy + DuckDNS certificate, see .env.example and server/README.md).
+# `https` profile (Caddy + DuckDNS certificate, see docs/self-hosting.md).
 services:
   auuki:
     build: .

@@ -46,46 +46,15 @@ By default it listens on 127.0.0.1 only. Web Bluetooth only works in a secure
 context, so other devices need HTTPS. Use 6-digit PINs once other devices can reach
 the server.
 
-### HTTPS on the home network (Caddy + DuckDNS)
+### HTTPS on the home network
 
-The `https` profile adds Caddy (`caddy/`) in front of the app. It gets a Let's
-Encrypt certificate for a free DuckDNS name through the DNS-01 challenge, so no
-router ports are opened and the app stays reachable from the home network only.
-The name and its LAN IP are public in DNS and in Certificate Transparency logs; the
-page is not.
+The `https` compose profile adds Caddy (`caddy/`) in front of the app with a Let's
+Encrypt certificate for a free DuckDNS name. Setup, building on another machine and
+updating: [docs/self-hosting.md](../docs/self-hosting.md).
 
-1. Log in at https://www.duckdns.org, add a subdomain (`your-subdomain`), set its IP
-   to the server's LAN IP and copy the token.
-2. `cp .env.example .env` next to `compose.yaml` and fill in `AUUKI_HOST`
-   (`your-subdomain.duckdns.org`) and `DUCKDNS_API_TOKEN`.
-3. Optional, if you run a local DNS server (Pi-hole, AdGuard Home, router): add a
-   record `your-subdomain.duckdns.org` -> the server's LAN IP. Routers with DNS
-   rebinding protection block public names that point at private IPs; the local
-   record avoids that.
-4. Port 443 must be free on the host (`sudo ss -tlnp | grep ':443 '`). If another
-   service uses it, move that service, or set `HTTPS_PORT=8443` in `.env` and use
-   `https://your-subdomain.duckdns.org:8443`. Pi-hole v6, for example, serves its web
-   UI on 80/443; `sudo pihole-FTL --config webserver.port '8081o,[::]:8081o'` moves it.
-5. `docker compose up -d` (with `COMPOSE_PROFILES=https` in `.env`). The first
-   certificate takes a minute: `docker compose logs -f caddy` shows
-   `certificate obtained successfully`.
-
-Caddy renews the certificate on its own; it is kept in the `caddy-data` volume.
-`FORWARDED_ALLOW_IPS=*` (set in `compose.yaml`) lets uvicorn trust Caddy's
-`X-Forwarded-Proto`, so the session cookie is marked `Secure` behind the proxy.
-`COOKIE_SECURE=true` forces that too.
-
-Building on a small server (e.g. a single-board computer with 1 GB RAM) is slow and
-can run out of memory. Build on another machine for the server's platform
-(`uname -m` on the server: `aarch64` -> `linux/arm64`, `x86_64` -> `linux/amd64`)
-and copy the images:
-
-```bash
-COMPOSE_PROFILES=https DOCKER_DEFAULT_PLATFORM=linux/arm64 docker compose build
-docker save auuki-home auuki-caddy | ssh <user>@<server> docker load
-# on the server, next to compose.yaml and .env:
-docker compose up -d --no-build
-```
+Behind Caddy, `FORWARDED_ALLOW_IPS=*` (set in `compose.yaml`) lets uvicorn trust
+`X-Forwarded-Proto`, so the session cookie is marked `Secure`. `COOKIE_SECURE=true`
+forces that too.
 
 Local development:
 
