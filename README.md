@@ -62,8 +62,8 @@ docker compose up -d --build
 
 Riders, accounts and sensors are set up in the app on first start. Data lives in the
 `auuki-data` volume. Web Bluetooth needs a secure context: `localhost` works as is, other
-devices on the network need HTTPS through a reverse proxy (see
-[server/README.md](server/README.md)).
+devices on the network need HTTPS. To run it on a home server with HTTPS, follow
+[docs/self-hosting.md](docs/self-hosting.md).
 
 Development:
 

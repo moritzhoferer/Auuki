@@ -1,0 +1,23 @@
+# TLS proxy in front of the app. AUUKI_HOST and DUCKDNS_API_TOKEN come from the
+# root .env (see .env.example). The certificate is fetched with the DNS-01
+# challenge, so nothing has to be reachable from the internet.
+{
+	servers {
+		# http://host:HTTPS_PORT (typed without https://) is redirected to
+		# https on the same port instead of failing with a 400
+		listener_wrappers {
+			http_redirect
+			tls
+		}
+	}
+}
+
+{$AUUKI_HOST} {
+	tls {
+		dns duckdns {env.DUCKDNS_API_TOKEN}
+		# check the challenge record on public DNS, not via a local DNS cache
+		resolvers 1.1.1.1 8.8.8.8
+	}
+	encode zstd gzip
+	reverse_proxy auuki:8080
+}

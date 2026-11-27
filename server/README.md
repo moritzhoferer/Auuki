@@ -42,14 +42,19 @@ Container (app + API on http://localhost:8080):
 docker compose up -d --build
 ```
 
-By default it listens on 127.0.0.1 only. To use it from other devices, set
-`AUUKI_BIND=0.0.0.0`. Web Bluetooth only works in a secure context, so other devices
-need HTTPS: put a reverse proxy with a certificate in front and set
-`COOKIE_SECURE=true`. The session cookie is also marked `Secure` on its own when the
-request arrives as https, but uvicorn only believes the proxy's `X-Forwarded-Proto`
-when the proxy's address is in `FORWARDED_ALLOW_IPS` (default 127.0.0.1, which a proxy
-outside the container isn't), so keep `COOKIE_SECURE=true` behind the proxy. Use
-6-digit PINs once other devices can reach the server.
+By default it listens on 127.0.0.1 only. Web Bluetooth only works in a secure
+context, so other devices need HTTPS. Use 6-digit PINs once other devices can reach
+the server.
+
+### HTTPS on the home network
+
+The `https` compose profile adds Caddy (`caddy/`) in front of the app with a Let's
+Encrypt certificate for a free DuckDNS name. Setup, building on another machine and
+updating: [docs/self-hosting.md](../docs/self-hosting.md).
+
+Behind Caddy, `FORWARDED_ALLOW_IPS=*` (set in `compose.yaml`) lets uvicorn trust
+`X-Forwarded-Proto`, so the session cookie is marked `Secure`. `COOKIE_SECURE=true`
+forces that too.
 
 Local development:
 
