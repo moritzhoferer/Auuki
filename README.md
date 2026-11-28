@@ -52,20 +52,38 @@ resistance and slope modes, .FIT recording. On top of that:
 
 The screenshots show a demo rider with simulated sensor data.
 
-## Run it
+## Run it on your laptop
 
-The app and its API run in one container on http://localhost:8080:
+The easiest way in: run Auuki on the laptop next to your bike and open it in Chrome or
+Edge at http://localhost:8080. Browsers treat `localhost` as a secure context, so Web
+Bluetooth works without certificates. The laptop's Bluetooth connects the trainer and
+sensors.
+
+With Docker, the app and its API run in one container:
 
 ```bash
 docker compose up -d --build
 ```
 
-Riders, accounts and sensors are set up in the app on first start. Data lives in the
-`auuki-data` volume. Web Bluetooth needs a secure context: `localhost` works as is, other
-devices on the network need HTTPS. To run it on a home server with HTTPS, follow
+Without Docker, you need Node.js 22 and [uv](https://docs.astral.sh/uv/):
+
+```bash
+npm install && npm run build
+cd server && uv sync && uv run uvicorn app.main:create_app --factory --port 8080
+```
+
+Then open http://localhost:8080. On first start the app asks for a rider, accounts
+(optional), FTP and weight, and your sensors. "Connect" opens Chrome's device list. Pick
+your trainer there. On macOS, allow Bluetooth for Chrome if the system asks.
+
+Rides and riders live in the `auuki-data` volume (Docker) or in `server/data/` (without
+Docker). `docker compose down` stops the container and keeps the data.
+
+The app on your laptop is only reachable from that laptop. To use it from phones and
+tablets on your Wi-Fi, they need HTTPS. Run it on a home server with
 [docs/self-hosting.md](docs/self-hosting.md).
 
-Development:
+## Development
 
 ```bash
 npm install
